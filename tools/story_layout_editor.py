@@ -1,0 +1,692 @@
+#!/usr/bin/env python3
+"""Generate a local drag-and-drop layout editor for story frame placement."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+OUT = ROOT / "tools" / "story_layout_editor.html"
+LAYOUT = ROOT / "assets" / "story_layout.json"
+
+
+def rel(path: Path) -> str:
+    return "../" + path.relative_to(ROOT).as_posix()
+
+
+def image_items() -> tuple[list[dict], list[dict]]:
+    backgrounds = []
+    people = []
+
+    src_dir = ROOT / "assets" / "src"
+    for path in sorted(src_dir.glob("*")):
+        if path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp"}:
+            continue
+        item = {"name": path.stem, "src": rel(path)}
+        if path.stem.lower() in {"background", "bg"}:
+            backgrounds.append(item)
+
+    cutout_dir = ROOT / "assets" / "generated" / "cutouts"
+    for path in sorted(cutout_dir.glob("*.png")):
+        if path.name == "cutouts_preview.png":
+            continue
+        people.append({"name": path.stem, "src": rel(path)})
+
+    if people:
+        return backgrounds, people
+
+    for path in sorted(src_dir.glob("*")):
+        if path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp"}:
+            continue
+        if path.stem.lower() not in {"background", "bg"}:
+            people.append({"name": path.stem, "src": rel(path)})
+
+    story_dir = ROOT / "assets" / "generated" / "story_frames"
+    for path in sorted(story_dir.glob("*.png")):
+        people.append({"name": path.stem, "src": rel(path)})
+
+    return backgrounds, people
+
+
+def main() -> None:
+    backgrounds, people = image_items()
+    if not backgrounds:
+        backgrounds = [{"name": "blank", "src": ""}]
+
+    initial_layout = {}
+    if LAYOUT.exists():
+        initial_layout = json.loads(LAYOUT.read_text(encoding="utf-8"))
+
+    html = HTML.replace("__BACKGROUNDS__", json.dumps(backgrounds, ensure_ascii=False))
+    html = html.replace("__PEOPLE__", json.dumps(people, ensure_ascii=False))
+    html = html.replace("__INITIAL_LAYOUT__", json.dumps(initial_layout, ensure_ascii=False))
+    OUT.write_text(html, encoding="utf-8")
+    print(f"wrote {OUT}")
+
+
+HTML = r"""<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Story Layout Editor</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f4f1ea;
+  --panel: #ffffff;
+  --ink: #171717;
+  --muted: #68615a;
+  --line: #d8d2c8;
+  --accent: #276ef1;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+}
+button, input, select, textarea {
+  font: inherit;
+}
+.app {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 280px minmax(640px, 1fr) 360px;
+}
+.sidebar, .inspector {
+  background: var(--panel);
+  border-color: var(--line);
+  padding: 16px;
+  overflow: auto;
+}
+.sidebar { border-right: 1px solid var(--line); }
+.inspector { border-left: 1px solid var(--line); }
+.stage-wrap {
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+}
+.stage-shell {
+  display: grid;
+  gap: 12px;
+}
+.stage-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.stage {
+  position: relative;
+  width: 600px;
+  height: 600px;
+  background: #fff;
+  border: 1px solid #2b2b2b;
+  box-shadow: 0 8px 24px rgba(30, 24, 18, 0.18);
+  overflow: hidden;
+  touch-action: none;
+}
+.stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(39,110,241,.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(39,110,241,.16) 1px, transparent 1px);
+  background-size: 24px 24px;
+  opacity: var(--grid-opacity, .45);
+}
+.bg-img, .person-img {
+  position: absolute;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.bg-img {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.person {
+  position: absolute;
+  outline: 2px solid transparent;
+  cursor: grab;
+  touch-action: none;
+}
+.person:active { cursor: grabbing; }
+.person.selected { outline-color: var(--accent); }
+.person-img {
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+.resize-handle {
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--accent);
+  background: #fff;
+  display: none;
+}
+.selected .resize-handle { display: block; }
+h1, h2 {
+  margin: 0 0 12px;
+  font-size: 17px;
+}
+h2 {
+  margin-top: 18px;
+  font-size: 14px;
+  color: var(--muted);
+}
+.asset-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.asset {
+  border: 1px solid var(--line);
+  background: #fff;
+  padding: 6px;
+  display: grid;
+  gap: 4px;
+  cursor: pointer;
+  min-height: 96px;
+}
+.asset img {
+  width: 100%;
+  height: 68px;
+  object-fit: contain;
+  background: #fafafa;
+}
+.asset span {
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.row {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.row.inline {
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+label {
+  font-size: 12px;
+  color: var(--muted);
+}
+input, select, textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  padding: 8px;
+  background: #fff;
+}
+button {
+  border: 1px solid #bbb3a7;
+  background: #fff;
+  color: var(--ink);
+  padding: 8px 10px;
+  cursor: pointer;
+}
+button.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.layers {
+  display: grid;
+  gap: 6px;
+}
+.layer {
+  border: 1px solid var(--line);
+  padding: 8px;
+  background: #fff;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+.layer.selected {
+  border-color: var(--accent);
+}
+.layer-name {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.layer-actions {
+  display: flex;
+  gap: 4px;
+}
+.layer-actions button {
+  padding: 4px 7px;
+}
+textarea {
+  min-height: 220px;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+}
+.hint {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+</style>
+</head>
+<body>
+<main class="app">
+  <aside class="sidebar">
+    <h1>定位素材</h1>
+    <div class="row">
+      <label>背景</label>
+      <select id="bgSelect"></select>
+    </div>
+    <div class="row">
+      <label>人物 / 阶段图</label>
+      <div id="assetGrid" class="asset-grid"></div>
+    </div>
+  </aside>
+
+  <section class="stage-wrap">
+    <div class="stage-shell">
+      <div class="stage-toolbar">
+        <button id="fitBtn">Fit 600</button>
+        <button id="zoomInBtn">Zoom +</button>
+        <button id="zoomOutBtn">Zoom -</button>
+        <button id="gridBtn">Grid</button>
+        <span class="hint">坐标按 200x200 屏幕导出</span>
+      </div>
+      <div id="stage" class="stage">
+        <img id="bgImg" class="bg-img" alt="">
+      </div>
+    </div>
+  </section>
+
+  <aside class="inspector">
+    <h1>坐标与顺序</h1>
+    <div class="row inline">
+      <div>
+        <label>X</label>
+        <input id="xInput" type="number" step="1">
+      </div>
+      <div>
+        <label>Y</label>
+        <input id="yInput" type="number" step="1">
+      </div>
+    </div>
+    <div class="row inline">
+      <div>
+        <label>W</label>
+        <input id="wInput" type="number" step="1" min="1">
+      </div>
+      <div>
+        <label>H</label>
+        <input id="hInput" type="number" step="1" min="1">
+      </div>
+    </div>
+    <div class="row">
+      <label>出场顺序</label>
+      <input id="appearInput" type="number" step="1" min="1">
+    </div>
+    <div class="buttons">
+      <button id="frontBtn">前移</button>
+      <button id="backBtn">后移</button>
+      <button id="dupBtn">复制</button>
+      <button id="deleteBtn">删除</button>
+    </div>
+
+    <h2>图层</h2>
+    <div id="layers" class="layers"></div>
+
+    <h2>导出</h2>
+    <div class="buttons">
+      <button class="primary" id="exportBtn">Export JSON</button>
+      <button id="copyBtn">Copy</button>
+      <button id="downloadBtn">Download</button>
+    </div>
+    <div class="row">
+      <textarea id="jsonOut" spellcheck="false"></textarea>
+    </div>
+    <p class="hint">建议每个人物按出现顺序排列图层；导出的 order 越小越先出现、越先绘制。</p>
+  </aside>
+</main>
+
+<script>
+const BACKGROUNDS = __BACKGROUNDS__;
+const PEOPLE = __PEOPLE__;
+const INITIAL_LAYOUT = __INITIAL_LAYOUT__;
+const SCREEN = 200;
+
+const stage = document.getElementById('stage');
+const bgImg = document.getElementById('bgImg');
+const bgSelect = document.getElementById('bgSelect');
+const assetGrid = document.getElementById('assetGrid');
+const layersEl = document.getElementById('layers');
+const jsonOut = document.getElementById('jsonOut');
+const inputs = {
+  x: document.getElementById('xInput'),
+  y: document.getElementById('yInput'),
+  w: document.getElementById('wInput'),
+  h: document.getElementById('hInput'),
+  appear_order: document.getElementById('appearInput'),
+};
+
+let scale = 3;
+let gridOn = true;
+let people = [];
+let selectedId = null;
+let nextId = 1;
+let drag = null;
+
+function px(v) { return `${v * scale}px`; }
+function fromStage(v) { return Math.round(v / scale); }
+function selected() { return people.find(p => p.id === selectedId) || null; }
+function displaySrc(src) {
+  if (!src) return '';
+  if (src.startsWith('../') || src.startsWith('data:') || /^[a-z]+:\/\//i.test(src)) return src;
+  return `../${src}`;
+}
+
+function setScale(value) {
+  scale = Math.max(1.5, Math.min(5, value));
+  stage.style.width = `${SCREEN * scale}px`;
+  stage.style.height = `${SCREEN * scale}px`;
+  stage.style.setProperty('--grid-opacity', gridOn ? '.45' : '0');
+  render();
+}
+
+function init() {
+  BACKGROUNDS.forEach((bg, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = bg.name;
+    bgSelect.appendChild(opt);
+  });
+  bgSelect.addEventListener('change', updateBackground);
+  updateBackground();
+
+  PEOPLE.forEach(asset => {
+    const btn = document.createElement('button');
+    btn.className = 'asset';
+    btn.type = 'button';
+    btn.innerHTML = `<img src="${asset.src}" alt=""><span>${asset.name}</span>`;
+    btn.addEventListener('click', () => addPerson(asset));
+    assetGrid.appendChild(btn);
+  });
+
+  Object.entries(inputs).forEach(([key, el]) => {
+    el.addEventListener('input', () => {
+      const p = selected();
+      if (!p) return;
+      p[key] = Number(el.value) || 0;
+      render();
+    });
+  });
+
+  document.getElementById('frontBtn').addEventListener('click', () => moveLayer(1));
+  document.getElementById('backBtn').addEventListener('click', () => moveLayer(-1));
+  document.getElementById('dupBtn').addEventListener('click', duplicateSelected);
+  document.getElementById('deleteBtn').addEventListener('click', deleteSelected);
+  document.getElementById('exportBtn').addEventListener('click', exportJson);
+  document.getElementById('copyBtn').addEventListener('click', copyJson);
+  document.getElementById('downloadBtn').addEventListener('click', downloadJson);
+  document.getElementById('fitBtn').addEventListener('click', () => setScale(3));
+  document.getElementById('zoomInBtn').addEventListener('click', () => setScale(scale + .5));
+  document.getElementById('zoomOutBtn').addEventListener('click', () => setScale(scale - .5));
+  document.getElementById('gridBtn').addEventListener('click', () => {
+    gridOn = !gridOn;
+    setScale(scale);
+  });
+
+  stage.addEventListener('pointerdown', e => {
+    if (e.target === stage || e.target === bgImg) {
+      selectedId = null;
+      render();
+    }
+  });
+  window.addEventListener('pointermove', onPointerMove);
+  window.addEventListener('pointerup', () => drag = null);
+
+  loadInitialLayout();
+  setScale(scale);
+  exportJson();
+}
+
+function updateBackground() {
+  const bg = BACKGROUNDS[Number(bgSelect.value)] || BACKGROUNDS[0];
+  bgImg.src = displaySrc(bg.src);
+}
+
+function addPerson(asset) {
+  const nextAppear = people.reduce((m, p) => Math.max(m, Number(p.appear_order) || 0), 0) + 1;
+  const p = {
+    id: `p${nextId++}`,
+    name: asset.name,
+    src: displaySrc(asset.src),
+    x: 60,
+    y: 40,
+    w: 80,
+    h: 120,
+    appear_order: nextAppear,
+  };
+  people.push(p);
+  selectedId = p.id;
+  render();
+}
+
+function loadInitialLayout() {
+  if (!INITIAL_LAYOUT || !Array.isArray(INITIAL_LAYOUT.people)) return;
+  const bgSrc = INITIAL_LAYOUT.background && INITIAL_LAYOUT.background.src;
+  if (bgSrc) {
+    const idx = BACKGROUNDS.findIndex(bg => bg.src === bgSrc || displaySrc(bg.src) === displaySrc(bgSrc));
+    if (idx >= 0) bgSelect.value = String(idx);
+    updateBackground();
+  }
+  people = INITIAL_LAYOUT.people
+    .slice()
+    .sort((a, b) => (Number(a.draw_order ?? a.order) || 0) - (Number(b.draw_order ?? b.order) || 0))
+    .map((p, index) => ({
+      id: `p${nextId++}`,
+      name: p.name || `person_${index + 1}`,
+      src: displaySrc(p.src),
+      x: Number(p.x) || 0,
+      y: Number(p.y) || 0,
+      w: Number(p.w) || 80,
+      h: Number(p.h) || 120,
+      appear_order: Number(p.appear_order ?? p.order ?? index + 1),
+    }));
+  selectedId = people.length ? people[0].id : null;
+}
+
+function render() {
+  [...stage.querySelectorAll('.person')].forEach(el => el.remove());
+  people.forEach((p, index) => {
+    const el = document.createElement('div');
+    el.className = `person${p.id === selectedId ? ' selected' : ''}`;
+    el.style.left = px(p.x);
+    el.style.top = px(p.y);
+    el.style.width = px(p.w);
+    el.style.height = px(p.h);
+    el.style.zIndex = String(index + 1);
+    el.dataset.id = p.id;
+    el.innerHTML = `<img class="person-img" src="${p.src}" alt=""><div class="resize-handle"></div>`;
+    el.addEventListener('pointerdown', e => {
+      selectedId = p.id;
+      const rect = el.getBoundingClientRect();
+      const resizing = e.target.classList.contains('resize-handle');
+      drag = {
+        id: p.id,
+        resizing,
+        startX: e.clientX,
+        startY: e.clientY,
+        baseX: p.x,
+        baseY: p.y,
+        baseW: p.w,
+        baseH: p.h,
+        aspect: p.w / Math.max(1, p.h),
+        offsetX: e.clientX - rect.left,
+        offsetY: e.clientY - rect.top,
+      };
+      el.setPointerCapture(e.pointerId);
+      render();
+      e.preventDefault();
+    });
+    stage.appendChild(el);
+  });
+  renderInputs();
+  renderLayers();
+}
+
+function onPointerMove(e) {
+  if (!drag) return;
+  const p = people.find(item => item.id === drag.id);
+  if (!p) return;
+  const dx = fromStage(e.clientX - drag.startX);
+  const dy = fromStage(e.clientY - drag.startY);
+  if (drag.resizing) {
+    p.w = Math.max(8, drag.baseW + dx);
+    p.h = Math.max(8, Math.round(p.w / drag.aspect));
+  } else {
+    p.x = drag.baseX + dx;
+    p.y = drag.baseY + dy;
+  }
+  render();
+}
+
+function renderInputs() {
+  const p = selected();
+  Object.values(inputs).forEach(el => el.disabled = !p);
+  if (!p) {
+    Object.values(inputs).forEach(el => el.value = '');
+    return;
+  }
+  inputs.x.value = Math.round(p.x);
+  inputs.y.value = Math.round(p.y);
+  inputs.w.value = Math.round(p.w);
+  inputs.h.value = Math.round(p.h);
+  inputs.appear_order.value = Math.round(p.appear_order || 1);
+}
+
+function renderLayers() {
+  layersEl.innerHTML = '';
+  people.forEach((p, index) => {
+    const row = document.createElement('div');
+    row.className = `layer${p.id === selectedId ? ' selected' : ''}`;
+    row.innerHTML = `
+      <div class="layer-name">D${index + 1} / A${p.appear_order || index + 1}. ${p.name}</div>
+      <div class="layer-actions">
+        <button type="button" data-act="up">↑</button>
+        <button type="button" data-act="down">↓</button>
+      </div>`;
+    row.addEventListener('click', () => {
+      selectedId = p.id;
+      render();
+    });
+    row.querySelector('[data-act="up"]').addEventListener('click', e => {
+      e.stopPropagation();
+      selectedId = p.id;
+      moveLayer(-1);
+    });
+    row.querySelector('[data-act="down"]').addEventListener('click', e => {
+      e.stopPropagation();
+      selectedId = p.id;
+      moveLayer(1);
+    });
+    layersEl.appendChild(row);
+  });
+}
+
+function moveLayer(delta) {
+  const idx = people.findIndex(p => p.id === selectedId);
+  if (idx < 0) return;
+  const next = Math.max(0, Math.min(people.length - 1, idx + delta));
+  if (idx === next) return;
+  const [item] = people.splice(idx, 1);
+  people.splice(next, 0, item);
+  render();
+}
+
+function duplicateSelected() {
+  const p = selected();
+  if (!p) return;
+  const copy = {...p, id: `p${nextId++}`, x: p.x + 8, y: p.y + 8};
+  people.push(copy);
+  selectedId = copy.id;
+  render();
+}
+
+function deleteSelected() {
+  if (!selectedId) return;
+  people = people.filter(p => p.id !== selectedId);
+  selectedId = null;
+  render();
+}
+
+function exportPayload() {
+  const bg = BACKGROUNDS[Number(bgSelect.value)] || BACKGROUNDS[0];
+  return {
+    screen: {w: SCREEN, h: SCREEN},
+    background: bg,
+    people: people.map((p, index) => ({
+      order: Number(p.appear_order) || index + 1,
+      draw_order: index + 1,
+      appear_order: Number(p.appear_order) || index + 1,
+      name: p.name,
+      src: p.src.replace(/^\.\.\//, ''),
+      x: Math.round(p.x),
+      y: Math.round(p.y),
+      w: Math.round(p.w),
+      h: Math.round(p.h),
+    })),
+  };
+}
+
+function exportJson() {
+  jsonOut.value = JSON.stringify(exportPayload(), null, 2);
+}
+
+async function copyJson() {
+  exportJson();
+  await navigator.clipboard.writeText(jsonOut.value);
+}
+
+function downloadJson() {
+  exportJson();
+  const blob = new Blob([jsonOut.value], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'story_layout.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+init();
+</script>
+</body>
+</html>
+"""
+
+
+if __name__ == "__main__":
+    main()

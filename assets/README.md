@@ -1,22 +1,40 @@
-# 素材目录
+# Asset Pipeline
 
-当前主方案使用视频抽帧资产。
+Current firmware uses a staged story asset pack:
+
+1. Six single-character frames generated from green-screen source images in
+   `assets/src/`.
+2. The existing staged group reveal frames from `assets/generated/video_frames/`.
+
+The firmware still consumes the same generated interface:
 
 ```text
-tools/video2c.py                 抽帧与 1bpp 转换工具
 assets/generated/family_video_assets.c
 assets/generated/family_video_assets.h
-assets/generated/video_preview.png
-assets/generated/video_preview_final.png
-assets/generated/video_frames/
 ```
 
-生成示例：
+Generate the current pack with:
+
+```powershell
+python tools/solo_story2c.py
+```
+
+Generated inspection files:
+
+```text
+assets/generated/video_preview.png
+assets/generated/video_preview_final.png
+assets/generated/story_frames/
+```
+
+`story_frames/` and `video_frames/` are intermediate PNGs. The C arrays are the
+source used by PlatformIO.
+
+The older pure video workflow is still available:
 
 ```powershell
 python tools/video2c.py path\to\video.mp4 00:00:00 00:01:08 00:02:14 00:04:02 00:04:17 00:05:12
 ```
 
-工具会中心裁切成正方形、缩放到 200x200、阈值化并打包为面板原生格式：bit 1 = white，bit 0 = black。
-
-第一版的 `assets/layout.json`、`tools/img2c.py`、`family_assets.*`、`preview.png` 和 `preview_1x.png` 属于已退役的“背景 + 逐人叠加”方案，不再作为当前资产入口。经验教训记录在 [docs/FAMILY_PHOTO_APP.md](../docs/FAMILY_PHOTO_APP.md)。
+That command overwrites `family_video_assets.*` with video-only frames, so rerun
+`tools/solo_story2c.py` before building the single-character prelude version.

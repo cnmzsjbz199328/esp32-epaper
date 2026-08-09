@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 An application project for the Waveshare ESP32-S3-Touch-ePaper-1.54 (200x200, 1bpp e-paper).
 The app is "family video frames": full-refresh the first extracted frame on boot, then each
-right-side screen tap advances to the next extracted video frame using **partial refresh**.
-Left-side tap resets to the first frame.
+right-side screen tap advances to the next story frame using **partial refresh**.
+Left-side tap goes back to the previous frame.
 
 PlatformIO + Arduino framework. Single environment: `epaper_154`.
 

@@ -1,0 +1,78 @@
+{
+  "screen": {
+    "w": 200,
+    "h": 200
+  },
+  "background": {
+    "name": "background",
+    "src": "../assets/src/background.png"
+  },
+  "people": [
+    {
+      "order": 2,
+      "draw_order": 1,
+      "appear_order": 2,
+      "name": "Armored_man_standing_heroically_202608091529_cutout",
+      "src": "assets/generated/cutouts/Armored_man_standing_heroically_202608091529_cutout.png",
+      "x": -23,
+      "y": 2,
+      "w": 193,
+      "h": 164
+    },
+    {
+      "order": 4,
+      "draw_order": 2,
+      "appear_order": 4,
+      "name": "Maid_with_glasses_standing_202608091529_cutout",
+      "src": "assets/generated/cutouts/Maid_with_glasses_standing_202608091529_cutout.png",
+      "x": 69,
+      "y": 0,
+      "w": 119,
+      "h": 179
+    },
+    {
+      "order": 7,
+      "draw_order": 3,
+      "appear_order": 7,
+      "name": "Character_standing_on_green_screen_202608091529_cutout",
+      "src": "assets/generated/cutouts/Character_standing_on_green_screen_202608091529_cutout.png",
+      "x": -12,
+      "y": 72,
+      "w": 80,
+      "h": 120
+    },
+    {
+      "order": 3,
+      "draw_order": 4,
+      "appear_order": 3,
+      "name": "Seated_woman_sitting_on_green_202608091529_complete_cutout",
+      "src": "assets/generated/cutouts/Seated_woman_sitting_on_green_202608091529_complete_cutout.png",
+      "x": 38,
+      "y": 39,
+      "w": 111,
+      "h": 167
+    },
+    {
+      "order": 5,
+      "draw_order": 5,
+      "appear_order": 5,
+      "name": "boy_on_green_background_202608091528_cutout",
+      "src": "assets/generated/cutouts/boy_on_green_background_202608091528_cutout.png",
+      "x": 16,
+      "y": 80,
+      "w": 80,
+      "h": 120
+    },
+    {
+      "order": 6,
+      "draw_order": 6,
+      "appear_order": 6,
+      "name": "Blue-haired_mage_holding_staff_202608091529_cutout",
+      "src": "assets/generated/cutouts/Blue-haired_mage_holding_staff_202608091529_cutout.png",
+      "x": 99,
+      "y": 32,
+      "w": 109,
+      "h": 164
+    }
+  ]
+}

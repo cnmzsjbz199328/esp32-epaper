@@ -1,7 +1,7 @@
 /**
  * 全家福视频抽帧应用 —— 入口
  *
- * 上电全刷第一帧，此后每点一下右半屏用局刷前进到下一帧，左半屏回到背景帧。
+ * 上电全刷第一帧，此后右半屏前进一帧，左半屏后退一帧。
  * 设计见 docs/FAMILY_PHOTO_APP.md，硬件事实见 docs/EPAPER_154_APP_GUIDE.md。
  *
  * 开机时按住 BOOT 进诊断模式，跑 v0.7.10 的交互式全测试。应用行为和基线结论
@@ -96,22 +96,17 @@ static bool app_video_full_then_rebase(void)
     return bsp_ui_partial_begin();
 }
 
-static void app_video_reset(void)
+static void app_video_show_frame(int target)
 {
-    Serial.println("[video] reset to first extracted frame");
-    s_video_frame = 0;
-    app_video_build_fb(s_video_frame);
-    app_video_full_then_rebase();
-}
+    if (target < 0) target = 0;
+    if (target >= APP_VIDEO_FRAME_COUNT) target = APP_VIDEO_FRAME_COUNT - 1;
 
-static void app_video_next_frame(void)
-{
-    if (s_video_frame >= APP_VIDEO_FRAME_COUNT - 1) {
-        Serial.println("[video] already at final frame; touch LEFT to restart");
+    if (target == s_video_frame) {
+        Serial.printf("[video] already at frame %d/%d\n", s_video_frame + 1, APP_VIDEO_FRAME_COUNT);
         return;
     }
 
-    s_video_frame++;
+    s_video_frame = target;
     app_video_build_fb(s_video_frame);
     Serial.printf("[video] frame %d/%d\n", s_video_frame + 1, APP_VIDEO_FRAME_COUNT);
 
@@ -119,6 +114,12 @@ static void app_video_next_frame(void)
         Serial.println("[video] final extracted frame -> full refresh");
         if (bsp_ui_partial_active()) bsp_ui_partial_end();
         bsp_ui_fb_flush_full();
+        return;
+    }
+
+    if (!bsp_ui_partial_active()) {
+        Serial.println("[video] partial inactive -> full refresh and rebase");
+        app_video_full_then_rebase();
         return;
     }
 
@@ -138,7 +139,7 @@ static void app_video_next_frame(void)
 
 static void app_video_setup(void)
 {
-    Serial.printf("[video] extracted full-frame app, %d frames\n", APP_VIDEO_FRAME_COUNT);
+    Serial.printf("[story] solo prelude + staged group app, %d frames\n", APP_VIDEO_FRAME_COUNT);
     if (APP_VIDEO_FRAME_LEN != bsp_ui_fb_len()) {
         Serial.printf("[video] ABORT: frame len %d != fb len %lu\n",
                       APP_VIDEO_FRAME_LEN, (unsigned long)bsp_ui_fb_len());
@@ -152,14 +153,14 @@ static void app_video_setup(void)
     if (!bsp_ui_partial_begin()) {
         Serial.println("[video] WARN: partial_begin failed; will run on full refresh only");
     }
-    Serial.println("[video] touch RIGHT = next frame, LEFT = restart, hold PWR 3s = off");
+    Serial.println("[video] touch RIGHT = next frame, LEFT = previous frame, hold PWR 3s = off");
 }
 
 static void app_video_loop(void)
 {
     const int dir = app_wait_nav(60000);
-    if (dir > 0)      app_video_next_frame();
-    else if (dir < 0) app_video_reset();
+    if (dir > 0)      app_video_show_frame(s_video_frame + 1);
+    else if (dir < 0) app_video_show_frame(s_video_frame - 1);
 }
 
 /* ========================================================================== */
