@@ -22,6 +22,7 @@ venv/
 
 # Assets: keep generated C arrays, ignore source photos
 assets/src/
+assets/generated/video_frames/
 
 # OS
 Thumbs.db

@@ -5,8 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 An application project for the Waveshare ESP32-S3-Touch-ePaper-1.54 (200x200, 1bpp e-paper).
-The app is "family photo fade-in": full-refresh a background on boot, then each screen tap
-overlays one more family member using **partial refresh**.
+The app is "family video frames": full-refresh the first extracted frame on boot, then each
+right-side screen tap advances to the next extracted video frame using **partial refresh**.
+Left-side tap resets to the first frame.
 
 PlatformIO + Arduino framework. Single environment: `epaper_154`.
 
@@ -43,8 +44,8 @@ Do not delete them to "clean up".
 - `boards/epaper_154/` — this board's implementation. `bsp_pins.h` is the single source
   of truth for every GPIO and hardware constant.
 - `src/main.cpp` — the application. Milestone-gated (see below).
-- `assets/generated/` — tool-generated C arrays (compiled in; the directory is already
-  wired into `build_src_filter` and include paths even though it doesn't exist yet).
+- `assets/generated/` — tool-generated C arrays and PNG previews compiled in through
+  `build_src_filter`. Current firmware assets are `family_video_assets.c/.h`.
 
 ### Two EPD driver paths — this is the important part
 
@@ -70,14 +71,12 @@ the discipline is to copy the reference literally and let the hardware judge.
 ink**, row-major, 25 bytes per row, MSB = leftmost pixel. It is fed to the panel with no
 inversion anywhere — one fewer place for "the whole screen is inverted" to hide.
 
-Asset bitmaps use the opposite convention (`bits`: 1 = black ink) because that is easier
-for humans and for the conversion tool. The inversion happens in exactly one place:
-inside `bsp_ui_draw_bitmap()`.
+Video assets are packed directly in panel-native format by `tools/video2c.py`.
 
-### Dual bit-planes and the mask
+### Retired dual bit-planes and the mask
 
-E-paper has no alpha channel. Every non-rectangular graphic (green-screen-keyed people,
-icons) needs **two** planes:
+The first application used green-screen-keyed people over a separate background. E-paper
+has no alpha channel, so every non-rectangular graphic needed **two** planes:
 
 ```c
 const uint8_t* bits;   /* 1 = black ink */
@@ -85,11 +84,11 @@ const uint8_t* mask;   /* 1 = this pixel belongs to the figure */
 /* fb = (fb & ~mask) | (ink & mask) */
 ```
 
-Without `mask` there is no way to distinguish "white shirt on the person" from
-"background outside the person's outline", and the whole bounding box gets pasted onto
-the screen. `bsp_ui_draw_bitmap()` takes `mask` in its first signature for this reason;
-passing `NULL` means "the whole w*h rectangle is the figure" and is only correct for
-full-frame backgrounds.
+Without `mask` there was no way to distinguish "white shirt on the person" from
+"background outside the person's outline", and the whole bounding box got pasted onto
+the screen. `bsp_ui_draw_bitmap()` still supports this because M0 diagnostics and future
+non-rectangular assets may need it, but the current main app uses full-frame video assets
+and does not compile the retired `family_assets.*` files.
 
 ### Partial refresh is session-based
 
@@ -113,25 +112,25 @@ Invariants:
   this size and costs 8-pixel alignment, coordinate math, and base-image sync.
 - Ignore touch input while BUSY, or a tap re-enters mid-refresh.
 
-### Milestone gating
+### Milestone diagnostics
 
-`docs/FAMILY_PHOTO_APP.md` defines M0–M5. `src/main.cpp` has `APP_RUN_M1` to select how
-far to run. **M1 (partial-refresh path verification with a moving square) must pass on
-real hardware before touching real assets.** The acceptance criterion is the measured
-partial-refresh BUSY duration: full refresh is 1755ms; partial should be ~300–500ms. If
-partial is still ~1755ms the partial LUT never took effect, and a picture that "looks
-right" does not count as passing.
+`src/main.cpp` keeps `APP_MODE=1` and `APP_MODE=2` as diagnostics. **M1
+(partial-refresh path verification with a moving square) is still the fastest way to
+check the partial-refresh path on real hardware.** The acceptance criterion is the
+measured partial-refresh BUSY duration: full refresh is 1755ms; partial should be
+~300–500ms. If partial is still ~1755ms the partial LUT never took effect, and a picture
+that "looks right" does not count as passing.
 
 `FAC_PARTIAL_REAPPLY_WINDOW` in `epd_factory.cpp` is the single-variable switch to try if
 partial refresh comes out flipped or row-shifted — the reference `EPD_Init_Partial()`
 hard-resets without re-applying entry mode `0x11` / window registers.
 
-### Background lightness is a hard constraint
+### Retired attempt lesson
 
-Partial-refresh LUTs do white→black cleanly and black→white with visible ghosting. Light
-areas of a person (face, pale clothing) landing on a dark background force the bad
-direction. This is decided when choosing and shooting the background, not in software.
-See "背景约束" in `docs/FAMILY_PHOTO_APP.md`.
+The retired first app was useful but should not be revived as the default: it looked
+blurred on the 200x200 1bpp panel and did not communicate the family's spatial
+relationships well. Keep that lesson in version history and in
+`docs/FAMILY_PHOTO_APP.md` when touching the asset pipeline.
 
 ## Hardware conventions
 
@@ -166,7 +165,8 @@ Board-specific gotchas that have already cost time:
 
 - `docs/EPAPER_154_APP_GUIDE.md` — hardware facts, verified peripherals, partial-refresh
   reference material, BSP gaps. Hardware truth lives here.
-- `docs/FAMILY_PHOTO_APP.md` — application design, asset pipeline, milestones, risks.
+- `docs/FAMILY_PHOTO_APP.md` — current video-frame application design, asset pipeline,
+  retired first-app lessons, diagnostics, risks.
   Application design lives here; it does not restate hardware facts.
 - `boards/epaper_154/CHANGELOG.md` — versioned board history with a Validation section
   per entry. Keep the format when changing board code.
