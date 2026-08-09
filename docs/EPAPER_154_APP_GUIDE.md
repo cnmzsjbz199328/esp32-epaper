@@ -269,7 +269,7 @@ PWR/BAT_KEY 动态按压已通过，可以作为应用中的长按关机、保�
 每次做完较大的应用改动，至少检查：
 
 ```powershell
-pio run -e epaper_154
+pio run -e epaper_154_app
 ```
 
 如果保留了基础测试项目中的工具，也建议运行：
@@ -283,7 +283,7 @@ python tools\check_status_sync.py
 
 ```powershell
 pio device list
-pio run -e epaper_154 -t upload --upload-port COM9
+pio run -e epaper_154_app -t upload --upload-port COM9
 ```
 
 端口不要盲信 `COM9`，先用 `pio device list` 确认。当前基础测试日志中的板卡 MAC 是：

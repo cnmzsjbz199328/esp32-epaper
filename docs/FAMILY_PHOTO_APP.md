@@ -55,6 +55,24 @@
 tools/video2c.py
 ```
 
+推荐从配置文件生成，避免阈值、裁切和帧时间码散落在命令行历史里：
+
+```powershell
+python tools/video2c.py --config assets/family_video_config.example.json
+```
+
+生成产物：
+
+```text
+assets/generated/family_video_assets.h
+assets/generated/family_video_assets.c
+assets/generated/family_video_manifest.json
+assets/generated/family_video_contactsheet.png
+```
+
+`manifest` 记录输入视频、帧时间码、裁切框、阈值、墨点比例、相邻帧变化比例和每帧刷新建议。
+`contactsheet` 与 C 数组同源，人工预览看到的黑白结果就是固件将要推给屏幕的结果。
+
 输入是一段视频和若干 `mm:ss:ff` 时间码。当前使用的 6 帧：
 
 ```text

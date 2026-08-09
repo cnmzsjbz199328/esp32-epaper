@@ -1,0 +1,19 @@
+{
+  "input": "family.mp4",
+  "output_prefix": "family_video",
+  "size": 200,
+  "crop": {
+    "mode": "square",
+    "offset_x": 0,
+    "offset_y": 0,
+    "scale": 1.0
+  },
+  "threshold": 145,
+  "dither": "none",
+  "denoise": true,
+  "frames": [
+    "00:00:00",
+    "00:01:08",
+    "00:02:14"
+  ]
+}

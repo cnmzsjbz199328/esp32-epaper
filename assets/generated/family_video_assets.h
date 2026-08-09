@@ -7,5 +7,12 @@
 #define APP_VIDEO_FRAME_H 200
 #define APP_VIDEO_FRAME_LEN 5000
 
+typedef enum {
+    APP_REFRESH_PARTIAL = 0,
+    APP_REFRESH_FULL = 1,
+    APP_REFRESH_FINAL_FULL = 2
+} app_refresh_hint_t;
+
 extern const uint8_t* const APP_VIDEO_FRAMES[];
+extern const app_refresh_hint_t APP_VIDEO_REFRESH_HINTS[];
 extern const int APP_VIDEO_FRAME_COUNT;

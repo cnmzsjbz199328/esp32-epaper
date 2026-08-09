@@ -74,6 +74,11 @@ bool     bsp_ui_flush_partial(void);
 void     bsp_ui_partial_end(void);
 bool     bsp_ui_partial_active(void);
 
+bool     bsp_epd_last_refresh_attempted(void);
+bool     bsp_epd_last_refresh_ok(void);
+uint32_t bsp_epd_last_busy_ms(void);
+const char* bsp_epd_last_detail(void);
+
 #ifdef __cplusplus
 }
 #endif

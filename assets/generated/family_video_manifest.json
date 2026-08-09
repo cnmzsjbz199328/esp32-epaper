@@ -1,0 +1,222 @@
+{
+  "generated_at": "2026-08-09T10:53:32.888849+00:00",
+  "tool": "legacy-current-assets-import",
+  "input": "unknown; assets existed before manifest support",
+  "output_prefix": "family_video",
+  "size": 200,
+  "threshold": null,
+  "dither": null,
+  "despeckle": null,
+  "invert": null,
+  "frames": [
+    {
+      "index": 0,
+      "timecode": null,
+      "seconds": null,
+      "ink_pct": 10.5,
+      "changed_pct": 100.0,
+      "refresh_hint": "APP_REFRESH_FULL",
+      "source_frame": "legacy generated asset; original video/timecode not recorded",
+      "processed_frame": "assets/generated/family_video_assets.c",
+      "crop": null
+    },
+    {
+      "index": 1,
+      "timecode": null,
+      "seconds": null,
+      "ink_pct": 8.43,
+      "changed_pct": 13.18,
+      "refresh_hint": "APP_REFRESH_PARTIAL",
+      "source_frame": "legacy generated asset; original video/timecode not recorded",
+      "processed_frame": "assets/generated/family_video_assets.c",
+      "crop": null
+    },
+    {
+      "index": 2,
+      "timecode": null,
+      "seconds": null,
+      "ink_pct": 5.742,
+      "changed_pct": 11.318,
+      "refresh_hint": "APP_REFRESH_PARTIAL",
+      "source_frame": "legacy generated asset; original video/timecode not recorded",
+      "processed_frame": "assets/generated/family_video_assets.c",
+      "crop": null
+    },
+    {
+      "index": 3,
+      "timecode": null,
+      "seconds": null,
+      "ink_pct": 5.013,
+      "changed_pct": 8.2,
+      "refresh_hint": "APP_REFRESH_PARTIAL",
+      "source_frame": "legacy generated asset; original video/timecode not recorded",
+      "processed_frame": "assets/generated/family_video_assets.c",
+      "crop": null
+    },
+    {
+      "index": 4,
+      "timecode": null,
+      "seconds": null,
+      "ink_pct": 6.175,
+      "changed_pct": 8.777,
+      "refresh_hint": "APP_REFRESH_PARTIAL",
+      "source_frame": "legacy generated asset; original video/timecode not recorded",
+      "processed_frame": "assets/generated/family_video_assets.c",
+      "crop": null
+    },
+    {
+      "index": 5,
+      "timecode": null,
+      "seconds": null,
+      "ink_pct": 10.138,
+      "changed_pct": 12.408,
+      "refresh_hint": "APP_REFRESH_PARTIAL",
+      "source_frame": "legacy generated asset; original video/timecode not recorded",
+      "processed_frame": "assets/generated/family_video_assets.c",
+      "crop": null
+    },
+    {
+      "index": 6,
+      "timecode": null,
+      "seconds": null,
+      "ink_pct": 19.035,
+      "changed_pct": 25.578,
+      "refresh_hint": "APP_REFRESH_PARTIAL",
+      "source_frame": "legacy generated asset; original video/timecode not recorded",
+      "processed_frame": "assets/generated/family_video_assets.c",
+      "crop": null
+    },
+    {
+      "index": 7,
+      "timecode": null,
+      "seconds": null,
+      "ink_pct": 25.072,
+      "changed_pct": 11.133,
+      "refresh_hint": "APP_REFRESH_PARTIAL",
+      "source_frame": "legacy generated asset; original video/timecode not recorded",
+      "processed_frame": "assets/generated/family_video_assets.c",
+      "crop": null
+    },
+    {
+      "index": 8,
+      "timecode": null,
+      "seconds": null,
+      "ink_pct": 26.49,
+      "changed_pct": 9.043,
+      "refresh_hint": "APP_REFRESH_PARTIAL",
+      "source_frame": "legacy generated asset; original video/timecode not recorded",
+      "processed_frame": "assets/generated/family_video_assets.c",
+      "crop": null
+    },
+    {
+      "index": 9,
+      "timecode": null,
+      "seconds": null,
+      "ink_pct": 31.617,
+      "changed_pct": 9.598,
+      "refresh_hint": "APP_REFRESH_PARTIAL",
+      "source_frame": "legacy generated asset; original video/timecode not recorded",
+      "processed_frame": "assets/generated/family_video_assets.c",
+      "crop": null
+    },
+    {
+      "index": 10,
+      "timecode": null,
+      "seconds": null,
+      "ink_pct": 32.682,
+      "changed_pct": 2.925,
+      "refresh_hint": "APP_REFRESH_PARTIAL",
+      "source_frame": "legacy generated asset; original video/timecode not recorded",
+      "processed_frame": "assets/generated/family_video_assets.c",
+      "crop": null
+    },
+    {
+      "index": 11,
+      "timecode": null,
+      "seconds": null,
+      "ink_pct": 32.648,
+      "changed_pct": 1.72,
+      "refresh_hint": "APP_REFRESH_PARTIAL",
+      "source_frame": "legacy generated asset; original video/timecode not recorded",
+      "processed_frame": "assets/generated/family_video_assets.c",
+      "crop": null
+    },
+    {
+      "index": 12,
+      "timecode": null,
+      "seconds": null,
+      "ink_pct": 23.54,
+      "changed_pct": 39.672,
+      "refresh_hint": "APP_REFRESH_PARTIAL",
+      "source_frame": "legacy generated asset; original video/timecode not recorded",
+      "processed_frame": "assets/generated/family_video_assets.c",
+      "crop": null
+    },
+    {
+      "index": 13,
+      "timecode": null,
+      "seconds": null,
+      "ink_pct": 23.765,
+      "changed_pct": 9.88,
+      "refresh_hint": "APP_REFRESH_PARTIAL",
+      "source_frame": "legacy generated asset; original video/timecode not recorded",
+      "processed_frame": "assets/generated/family_video_assets.c",
+      "crop": null
+    },
+    {
+      "index": 14,
+      "timecode": null,
+      "seconds": null,
+      "ink_pct": 24.8,
+      "changed_pct": 6.32,
+      "refresh_hint": "APP_REFRESH_PARTIAL",
+      "source_frame": "legacy generated asset; original video/timecode not recorded",
+      "processed_frame": "assets/generated/family_video_assets.c",
+      "crop": null
+    },
+    {
+      "index": 15,
+      "timecode": null,
+      "seconds": null,
+      "ink_pct": 25.77,
+      "changed_pct": 5.435,
+      "refresh_hint": "APP_REFRESH_PARTIAL",
+      "source_frame": "legacy generated asset; original video/timecode not recorded",
+      "processed_frame": "assets/generated/family_video_assets.c",
+      "crop": null
+    },
+    {
+      "index": 16,
+      "timecode": null,
+      "seconds": null,
+      "ink_pct": 26.825,
+      "changed_pct": 2.79,
+      "refresh_hint": "APP_REFRESH_PARTIAL",
+      "source_frame": "legacy generated asset; original video/timecode not recorded",
+      "processed_frame": "assets/generated/family_video_assets.c",
+      "crop": null
+    },
+    {
+      "index": 17,
+      "timecode": null,
+      "seconds": null,
+      "ink_pct": 30.685,
+      "changed_pct": 6.91,
+      "refresh_hint": "APP_REFRESH_PARTIAL",
+      "source_frame": "legacy generated asset; original video/timecode not recorded",
+      "processed_frame": "assets/generated/family_video_assets.c",
+      "crop": null
+    },
+    {
+      "index": 18,
+      "timecode": null,
+      "seconds": null,
+      "ink_pct": 31.205,
+      "changed_pct": 2.205,
+      "refresh_hint": "APP_REFRESH_FINAL_FULL",
+      "source_frame": "legacy generated asset; original video/timecode not recorded",
+      "processed_frame": "assets/generated/family_video_assets.c",
+      "crop": null
+    }
+  ]
+}
