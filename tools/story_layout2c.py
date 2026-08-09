@@ -41,10 +41,18 @@ def fit_background(path: Path, size: tuple[int, int]) -> Image.Image:
 
 def paste_person(canvas: Image.Image, person: dict) -> None:
     img = Image.open(resolve_path(person["src"])).convert("RGBA")
-    w = int(round(person["w"]))
-    h = int(round(person["h"]))
-    img = img.resize((w, h), Image.Resampling.LANCZOS)
-    canvas.alpha_composite(img, (int(round(person["x"])), int(round(person["y"]))))
+    box_w = max(1, int(round(person["w"])))
+    box_h = max(1, int(round(person["h"])))
+    src_w, src_h = img.size
+    scale = min(box_w / src_w, box_h / src_h)
+    draw_w = max(1, int(round(src_w * scale)))
+    draw_h = max(1, int(round(src_h * scale)))
+    img = img.resize((draw_w, draw_h), Image.Resampling.LANCZOS)
+
+    # Match the layout editor's object-fit: contain behavior.
+    x = int(round(person["x"])) + (box_w - draw_w) // 2
+    y = int(round(person["y"])) + (box_h - draw_h) // 2
+    canvas.alpha_composite(img, (x, y))
 
 
 def compose_frames(layout: dict) -> list[tuple[int, Image.Image]]:
