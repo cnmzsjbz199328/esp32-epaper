@@ -1,0 +1,64 @@
+{
+  "_": "构图真值。改这里 -> 重跑 tools/img2c.py -> 看 assets/generated/preview.png。所有 x/w 必须是 8 的倍数。",
+
+  "screen": { "w": 200, "h": 200 },
+
+  "render": {
+    "_": "dither=Floyd-Steinberg（有灰度感、近看是噪点）；threshold=高对比阈值（像剪影版画、更干净）。看预览再定，这个选择很主观。",
+    "mode": "dither",
+    "threshold": 128,
+    "contrast": 1.15
+  },
+
+  "background": {
+    "_": "5 个人占满全屏，人物落点几乎等于整屏，所以背景必须近乎全白。见 assets/README.md 的生成提示词。",
+    "src": "bg.png",
+    "mode": "threshold",
+    "threshold": 200
+  },
+
+  "chroma_key": {
+    "_": "全局默认值。单个人物可在 people[] 里覆盖同名字段。hue 单位是 OpenCV 的 0-179。",
+    "hue_center": 60,
+    "hue_tolerance": 25,
+    "sat_min": 60,
+    "val_min": 40,
+    "spill_strength": 0.8,
+    "feather": 1
+  },
+
+  "people": [
+    {
+      "_": "后排三人。order 就是出场顺序，也是绘制顺序 —— 后画的盖住先画的，所以被挡住的人必须排在前面。",
+      "id": "p1", "name": "back-left",
+      "src": "person_01.jpg",
+      "x": 8, "y": 24, "w": 56, "h": 136,
+      "order": 1
+    },
+    {
+      "id": "p2", "name": "back-center",
+      "src": "person_02.jpg",
+      "x": 72, "y": 24, "w": 56, "h": 136,
+      "order": 2
+    },
+    {
+      "id": "p3", "name": "back-right",
+      "src": "person_03.jpg",
+      "x": 136, "y": 24, "w": 56, "h": 136,
+      "order": 3
+    },
+    {
+      "_": "前排两人。y=88 起，与后排 24..160 重叠 72px —— 这是全家福该有的层次，不是错位。",
+      "id": "p4", "name": "front-left",
+      "src": "person_04.jpg",
+      "x": 32, "y": 88, "w": 64, "h": 104,
+      "order": 4
+    },
+    {
+      "id": "p5", "name": "front-right",
+      "src": "person_05.jpg",
+      "x": 104, "y": 88, "w": 64, "h": 104,
+      "order": 5
+    }
+  ]
+}
