@@ -1,0 +1,102 @@
+{
+ "board": "epaper_154",
+ "archive_dir": "archive/epaper_154",
+ "_comment": [
+  "原件仓的被跟踪清单。archive/ 本身不入库（见 .gitignore），本文件负责让它可重建、可校验。",
+  "python tools/harvest_pdf.py --verify <board>    校验本地原件与本清单是否一致",
+  "python tools/harvest_pdf.py --fetch  <board>    按 url 重下缺失项",
+  "python tools/harvest_pdf.py --manifest <board>  收录新放进去的文件（保留已填的 url/note/kind）",
+  "kind=download：可自动重下，sha256 应当一致。",
+  "kind=print：浏览器打印出来的，只能人工重新打印，且 sha256 一定不同 —— 打印不是确定性过程。"
+ ],
+ "files": [
+  {
+   "file": "1.54inch_e-paper_V2_Datasheet.pdf",
+   "kind": "download",
+   "bytes": 1280780,
+   "sha256": "7de0d12a56ef5a64fcb86304905e23af80463412b64c7e8b68adf09cd1845150",
+   "url": "https://files.waveshare.com/wiki/common/1.54inch_e-paper_V2_Datasheet.pdf",
+   "note": "墨水屏面板与 SSD1681 驱动芯片 Specification，确认 BUSY 极性 (High=Busy) 与 RAM X/Y 寻址寄存器。"
+  },
+  {
+   "file": "ESP32-S3-Touch-ePaper-1.54-Schematic.pdf",
+   "kind": "download",
+   "bytes": 580111,
+   "sha256": "be6871527a397606189fff060750326003197ac828e2f0e499ad1206104aee2e",
+   "url": "https://files.waveshare.com/wiki/ESP32-S3-ePaper-1.54/ESP32-S3-Touch-ePaper-1.54-Schematic.pdf",
+   "note": "一手真值原理图。全板 EPD/I2C/SD/音频/电源控制电路及 U8 IO 映射表。同一份也入库至 docs/refs/。"
+  },
+  {
+   "file": "Pcf85063atl1118-NdPQpTGE-loeW7GbZ7.pdf",
+   "kind": "download",
+   "bytes": 535722,
+   "sha256": "93b384873539e770305b8982bcfa6387eac695650063b6a11279beae7a20602a",
+   "url": "https://files.waveshare.com/wiki/common/Pcf85063atl1118-NdPQpTGE-loeW7GbZ7.pdf",
+   "note": "PCF85063 I2C Real-Time Clock (RTC) 数据手册。"
+  },
+  {
+   "file": "SHTC3_Datasheet.pdf",
+   "kind": "download",
+   "bytes": 928256,
+   "sha256": "d315fe3d00282ece1d8901c0936f8bcbaa87b159bcd0e71f9002d1f03b57a8f1",
+   "url": "https://files.waveshare.com/wiki/common/SHTC3_Datasheet.pdf",
+   "note": "SHTC3 I2C 温湿度传感器数据手册。"
+  },
+  {
+   "file": "wiki-01-main.pdf",
+   "kind": "print",
+   "bytes": 2730532,
+   "sha256": "1e1095d7c52743c6f63ea31f43d687e4135ec2030065db38703ef090ab53ff84",
+   "url": "https://docs.waveshare.com/ESP32-S3-ePaper-1.54",
+   "note": "Wiki 主页面打印件 (2.73MB)。正文抽取在 docs/refs/wiki-text/wiki_01_main.txt。"
+  },
+  {
+   "file": "wiki-02-main.pdf",
+   "kind": "print",
+   "bytes": 1526256,
+   "sha256": "e6e2a672f13cb59cd030a13c9b5151e97095eece4251ffefacaabfc06f7b47ee",
+   "url": "https://docs.waveshare.com/ESP32-S3-ePaper-1.54",
+   "note": "Wiki 主页面另一打印件 (1.53MB)。对比确认两者文本与表格内容一致。"
+  },
+  {
+   "file": "wiki-03-ai-application-tutorial.pdf",
+   "kind": "print",
+   "bytes": 233709,
+   "sha256": "848ca7badbf8ac884a9ae5f9c58bb0221899dc455a206350628fca4756f7d61f",
+   "url": "https://docs.waveshare.com/ESP32-S3-ePaper-1.54/AI-Application-Tutorial",
+   "note": "Wiki AI 应用教程子页面。"
+  },
+  {
+   "file": "wiki-04-faq.pdf",
+   "kind": "print",
+   "bytes": 693312,
+   "sha256": "0e132285449409e33c24cb2d23c5e81414bc759479416294bcac82cf45305b02",
+   "url": "https://docs.waveshare.com/ESP32-S3-ePaper-1.54/FAQ",
+   "note": "Wiki FAQ 常见问题解答页面。"
+  },
+  {
+   "file": "wiki-05-resources.pdf",
+   "kind": "print",
+   "bytes": 420976,
+   "sha256": "414af1d9b2520683d7fc37c3af7cb6ad9392b2ecf1be06321eb35d5bcbb2f6d6",
+   "url": "https://docs.waveshare.com/ESP32-S3-ePaper-1.54/Resources",
+   "note": "Wiki Resources 页面，含原理图与各类 Datasheet 直链。"
+  },
+  {
+   "file": "wiki-06-working-with-esp-idf.pdf",
+   "kind": "print",
+   "bytes": 3656980,
+   "sha256": "4d3911ac28ca4a0aaf8fff53f4b2dfbad862754698bd288c4c3b5794bb1be7e2",
+   "url": "https://docs.waveshare.com/ESP32-S3-ePaper-1.54/Working-with-ESP-IDF",
+   "note": "Wiki ESP-IDF 使用说明页面。"
+  },
+  {
+   "file": "wiki-07-xiaozhi-ai-application-tutorial.pdf",
+   "kind": "print",
+   "bytes": 1925227,
+   "sha256": "dbbefc1900c656a17de9e4233304ca5f66df2543b573f079929857b3f564fd91",
+   "url": "https://docs.waveshare.com/ESP32-S3-ePaper-1.54/XiaoZhi-AI-Application-Tutorial",
+   "note": "Wiki XiaoZhi AI 教程子页面。"
+  }
+ ]
+}

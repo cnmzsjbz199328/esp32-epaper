@@ -150,6 +150,8 @@ bsp_ui_clear / bsp_ui_printf / bsp_ui_status / bsp_ui_bar / bsp_ui_flush
 
 **没有任何位图/framebuffer 接口**。任何要显示图片的应用都必须先补这一层，详见 `docs/FAMILY_PHOTO_APP.md`。
 
+注意墨水屏没有 alpha 通道：非矩形图形（抠像人物、图标）需要 `bits` + `mask` 两个位平面，叠加运算是 `fb = (fb & ~mask) | (bits & mask)`。这个约束要在 `bsp_ui_draw_bitmap()` 的第一版签名里就带上。
+
 ## 触摸交互约定
 
 基础测试应用已验证的简单约定是：
@@ -327,7 +329,9 @@ rst:
 uint8_t* bsp_ui_fb(void);                    /* 5000 字节 1bpp framebuffer */
 void bsp_ui_fb_clear(uint8_t value);
 void bsp_ui_draw_bitmap(int x, int y, int w, int h,
-                        const uint8_t* bits, bool invert);
+                        const uint8_t* bits,        /* 1 = 黑墨 */
+                        const uint8_t* mask,        /* 1 = 属于图形；NULL = 整块矩形 */
+                        bool invert);
 bool bsp_ui_partial_begin(void);             /* 下发局刷 LUT + 写基准图 */
 bool bsp_ui_flush_partial(void);             /* 单帧局刷 */
 void bsp_ui_partial_end(void);               /* 退回全刷模式 */

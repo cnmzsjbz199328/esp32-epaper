@@ -27,4 +27,12 @@ C:\Users\tj169\Flinders\work\Learning\esp32_test
 
 ## 状态
 
-文档阶段，尚无代码。下一步是里程碑 M0：补 framebuffer/位图 API，全刷显示一张静态背景图。
+M0 + M1 代码已写完并编译通过，**等实机验证**。
+
+- M0：工程骨架、`boards/epaper_154` + `lib/bsp_*` 已从基线迁入，framebuffer/双位平面位图 API 已补齐，测试图走全刷。
+- M1：局刷会话 API（`bsp_ui_partial_begin/flush_partial/partial_end`）已实现，方块右移验证程序已就位。
+
+烧录后按串口 `[m1] step .. busy..ms` 判读：局刷若仍是 ~1755ms，说明局刷 LUT 没生效。
+开机按住 BOOT 进诊断模式（v0.7.10 交互式全测试）。
+
+下一步是 M2：`tools/img2c.py` 素材管线 + 真实照片。需要先定人数与背景。

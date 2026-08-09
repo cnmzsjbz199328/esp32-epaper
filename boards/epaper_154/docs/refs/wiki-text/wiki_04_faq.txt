@@ -1,0 +1,87 @@
+
+===== PAGE 1 =====
+ESP32-S3-ePaper-1.54 FAQ
+FAQ
+In low-power mode, waking up every 60 seconds,
+it can run for approximately 4 days.
+When continuously in low-power mode, it can run
+for approximately 10 days.
+In low-power mode, measured total board current
+is 1mA.
+It takes 30 minutes to charge to 4.1V.
+It takes 44 minutes to fully charge.
+Q: What is the standby time when powered by the lithium
+battery?
+Q: What is the lithium battery charging time?
+===== PAGE 2 =====
+First, check if the example program version
+matches the product version.
+Check if the Arduino IDE -> Tools is properly
+configured.
+Q: The example program is successfully flashed but won't
+run?
+Q: Error when compiling an Arduino program?
+===== PAGE 3 =====
+The product labeled V2 on the back, or with V2
+silkscreen in the top-left corner of the PCB, is the
+V2 version. Otherwise, it is the V1 version.
+Example programs are not interchangeable
+between different versions.
+V1 Version: Flash: 4MB, PSRAM: 2MB.
+V2 Version: Flash: 8MB, PSRAM: 8MB.
+You can press and hold the BOOT button to
+power on again, and the module can enter the
+download mode at this time, which can solve
+most of the problems that cannot be
+downloaded.
+Q: What are the differences between the V1 and V2
+versions of the development board?
+Q: After downloading a program to the module, when
+trying to download again, sometimes it fails to connect to
+the serial port or the flashing fails?
+===== PAGE 4 =====
+First consider the network issue, try switching to
+another network.
+It's normal for the first compilation to be slow,
+just wait patiently.
+1. Some AppData folders are hidden by default and
+can be set to be displayed.
+2. English System: File Explorer -> View -> Check
+"Hidden items".
+Q: Failed to set up the VSCode environment?
+Q: The first program compilation is extremely slow. How to
+handle it?
+Q: What should I do if I can't find the AppData folder?
+===== PAGE 5 =====
+3. Chinese System: File Explorer -> View -> Display -
+> Check "Hidden Items".
+Windows System:
+1. Through Device Manager: Press Windows  + R  to
+open the "Run" dialog box. Type devmgmt.msc
+and press Enter to open Device Manager. Expand
+the "Ports (COM & LPT)" section. All COM ports
+and their current status will be listed here.
+2. Using Command Prompt: Open the Command
+Prompt (CMD), enter the mode command, which
+will display status information for all COM ports.
+3. Check the hardware connection: If an external
+device is already connected to a COM port, the
+device typically occupies a port number. You can
+determine which port is being used by checking
+the connected hardware.
+Linux System:
+1. Check using the dmesg command: Open the
+terminal.
+Q: How can I check which COM port I am using?
+===== PAGE 6 =====
+2. Check using the ls command: Type 
+ls
+/dev/ttyS* or ls /dev/ttyUSB* to list all serial
+devices.
+3. Use the setserial command: Type 
+setserial -g
+/dev/ttyS* to view configuration information for
+all serial devices.
+Please refer to SquareLine Studio Tutorial.
+Give Feedback
+Q: How to use SquareLine Studio to design interfaces?

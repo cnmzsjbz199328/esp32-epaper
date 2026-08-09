@@ -1,0 +1,70 @@
+
+===== PAGE 1 =====
+ESP32-S3-ePaper-1.54 Resources
+Resources
+1. Hardware Resources
+Development Board Design Files
+Schematic Diagram
+2. Technical Manuals
+ESP32-S3 Chip Official Manuals
+Datasheet
+Technical Reference Manual
+Datasheets
+PCF85063 Datasheet
+SHTC3 Datasheet
+ePaper_1.54 Datasheet
+3. Demo
+ESP32-S3-ePaper-1.54 Demo (GitHub)
+
+===== PAGE 2 =====
+4. Community Showcase
+INFO
+Check out these amazing projects created by the
+community! Please note these are independently
+maintained by their creators.
+Volos Projects - ESP32 e-Paper Board Has
+EVERYTHING
+YouTube: https://www.youtube.com/watch?v=5zc-yjMQtoo
+GitHub: https://github.com/VolosR/waveshareEinkMonitor
+Hakista TV (Pinoy Hacker) - Programming E-
+Paper Display // ESP32-S3-ePaper-1.54
+Volos Projects
+T h i s  C h e a p  E S P 3 2  e - P a p e r  B o a r d  H a s  E V E
+T h i s  C h e a p  E S P 3 2  e - P a p e r  B o a r d  H a s  E V E
+Watch on
+===== PAGE 3 =====
+YouTube: https://www.youtube.com/watch?
+v=MW2uOFsw91E
+nishad2m8 - Sygic HUD + Local TTS
+Hakista TV (Pinoy Hacker)
+T h i s  " H e l l o  W o r l d "  t o o k  m e  4  h o u r s !  P r o g r a
+T h i s  " H e l l o  W o r l d "  t o o k  m e  4  h o u r s !  P r o g r a
+Watch on
+nishad2m8
+S y g i c  H U D  +  L o c a l  T T S  o n  @ w a v e s h a r e e l e
+S y g i c  H U D  +  L o c a l  T T S  o n  @ w a v e s h a r e e l e
+Watch on
+===== PAGE 4 =====
+YouTube: https://www.youtube.com/watch?
+v=Vsas05GQCGk
+GitHub: https://github.com/nishad2m8/lvgl-board-
+templates/tree/main/WaveShare/WS%201.54
+EPDify - EPY Paper Host Introduction
+YouTube: https://www.youtube.com/watch?
+v=iAOWNgL5Jx8
+GitHub: https://github.com/EPDify/epy-paper-host
+Paul Lagier - Built a Minimalist AI Note
+Device
+EPDify
+E P Y  -  P a p e r  H o s t  I n t r o d u c t i o n
+E P Y  -  P a p e r  H o s t  I n t r o d u c t i o n
+Watch on
+===== PAGE 5 =====
+YouTube: https://www.youtube.com/watch?
+v=3t0k7E7WiOQ
+Guide: https://ko-fi.com/s/674a1a82e0
+Give Feedback
+Paul Lagier
+I  B u i l t  a  M i n i m a l i s t  A I  N o t e  D e v i c e
+I  B u i l t  a  M i n i m a l i s t  A I  N o t e  D e v i c e
+Watch on

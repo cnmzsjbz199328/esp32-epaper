@@ -1,0 +1,168 @@
+
+===== PAGE 1 =====
+ESP32-S3-ePaper-1.54
+ESP32-S3-ePaper-1.54
+ESP32-S3-
+ePaper-
+1.54-EN
+(Without
+touch
+control,
+without
+lithium
+battery)
+ESP32-
+S3-
+ePaper-
+1.54
+(Without
+touch
+control,
+with
+lithium
+battery)
+ESP32-S3-
+Touch-
+ePaper-
+1.54-EN
+(With
+touch
+control,
+without
+lithium
+battery)
+ESP32-S3-
+Touch-
+ePaper-
+1.54 (With
+touch
+control,
+with
+lithium
+battery)
+
+===== PAGE 2 =====
+The ESP32-S3-ePaper-1.54 is an e-Paper AIoT development
+board, equipped with ESP32-S3 microcontroller, which supports
+Wi-Fi and BLE dual-mode communication. The onboard
+1.54inch e-paper display, features ultra-low power consumption
+and sunlight readability, suitable for portable devices and long-
+lasting scenarios. It integrates an RTC chip, SHTC3 temperature
+and humidity sensor, TF card slot, low-power audio codec chip
+circuit, and Lithium battery recharge management circuit. It
+reserves interfaces including USB, UART, I2C, and GPIO for easy
+functionality expansion and sensor connectivity, providing a
+flexible and reliable development platform for IoT terminals,
+electronic tags, portable displays, and other applications.
+===== PAGE 3 =====
+NOTE
+The V2 version will be phased in starting from
+November 1, 2025. The products labeled V2 on the
+back, or with V2 silkscreen in the top-left corner of
+the PCB, is the V2 version. Otherwise, it is the V1
+version. Example programs are not interchangeable
+between different versions.
+V1 Version: Equipped with ESP32-S3FH4R2, integrated
+4MB Flash and 2MB PSRAM.
+V2 Version: Equipped with ESP32-S3-PICO-1-N8R8,
+integrated 8MB Flash and 8MB PSRAM; also features
+optimized whole-board power consumption in sleep
+mode.
+SKU Product
+32298 ESP32-S3-ePaper-1.54
+32299 ESP32-S3-ePaper-1.54-EN
+34211 ESP32-S3-Touch-ePaper-1.54
+34212 ESP32-S3-Touch-ePaper-1.54-EN
+===== PAGE 4 =====
+Features
+Powered by a high-performance Xtensa 32-bit LX7 dual-
+core processor, with a main frequency of up to 240MHz
+Supports 2.4GHz Wi-Fi and Bluetooth 5 (LE), with an
+onboard internal antenna
+Built-in 512KB SRAM and 384KB ROM, with integrated
+Flash and PSRAM in a stacked package
+Features a 1.54inch e-Paper display, resolution 200 × 200,
+offering high contrast and wide viewing angles
+Onboard audio codec chip supports voice capture and
+playback, facilitating AI voice interaction applications
+Onboard PCF85063 RTC real-time clock and SHTC3
+temperature and humidity sensor enable precise RTC time
+management and environmental monitoring
+Built-in TF card slot, supports external storage of images or
+files
+Onboard PWR and BOOT side buttons, configurable for
+custom function development
+Reserved 2 × 6 2.54mm pitch female header interface for
+external expansion
+Onboard Resources
+===== PAGE 5 =====
+1. ESP32-S3-PICO-1-N8R8 Wi-Fi and Bluetooth SoC, running
+at 240MHz, with integrated 8MB Flash and 8MB PSRAM in
+a stacked package
+2. TF Card Slot TF card must be formatted as FAT32 for use
+3. ES8311 Audio Codec Chip Supports audio input and
+output, low-power design, suitable for voice recognition
+and playback applications
+4. BOOT Button Press and hold the BOOT button to power
+on again to enter download mode
+5. PWR Power Button Press and hold to power on/off the
+device
+6. Type-C Interface ESP32-S3 USB interface for program
+flashing and serial logging
+7. Microphone For audio capture
+===== PAGE 6 =====
+8. SHTC3 Temperature and Humidity Sensor Provides
+ambient temperature and humidity measurement, enabling
+environmental monitoring function
+9. MX1.25 2PIN Speaker Header Audio signal output, for
+connecting external speaker
+10. MX1.25 2PIN Lithium Battery Header For connecting a
+lithium battery
+11. Onboard Chip Antenna Supports 2.4GHz Wi-Fi (802.11
+b/g/n) and Bluetooth 5 (LE)
+12. PCF85063 (back side) RTC clock chip, supports time-
+keeping function
+13. 2 × 6PIN 2.54mm Pitch Female Header Can be used for
+expansion
+14. Speaker Plays audio
+Interface Introduction
+===== PAGE 7 =====
+Dimensions
+===== PAGE 8 =====
+e-Paper Display Parameters
+===== PAGE 9 =====
+Development Methods
+The ESP32-S3-ePaper-1.54 supports two development
+frameworks: Arduino IDE and ESP-IDF, offering flexibility for
+developers. You can choose the appropriate development tool
+based on project requirements and personal preference.
+Arduino generally offers a gentler learning curve and may be
+more approachable for beginners and hobbyists. ESP-IDF
+provides advanced tooling and finer control over system
+behavior, making it better suited to complex projects and
+applications with demanding performance requirements.
+Arduino IDE is a convenient, flexible, and easy-to-use
+open-source electronics prototyping platform. It requires
+minimal foundational knowledge, allowing for rapid
+development after a short learning period. Arduino has a
+huge global user community, providing a vast amount of
+open-source code, project examples, and tutorials, as well
+as a rich library ecosystem that encapsulates complex
+===== PAGE 10 =====
+functions, enabling developers to implement various
+features rapidly. You can refer to the Working with
+Arduino to complete the initial setup, and the tutorial also
+provides related demos for reference.
+ESP-IDF, short for Espressif IoT Development Framework, is
+a professional development framework launched by
+Espressif Systems for its ESP series of chips. It is based on C
+language development and includes compilers, debuggers,
+flashing tools, etc. It supports development via command
+line or integrated development environments (such as
+Visual Studio Code with the Espressif IDF plugin), which
+provides features like code navigation, project
+management, and debugging. We recommend using VS
+Code for development. For the specific configuration
+process, please refer to the Working with ESP-IDF. The
+tutorial also provides relevant demos for reference.
+Give Feedback
