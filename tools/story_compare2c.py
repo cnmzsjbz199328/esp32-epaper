@@ -34,9 +34,9 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--previous", default=str(ROOT / "assets" / "story_layout_previous.json"))
     parser.add_argument("--current", default=str(ROOT / "assets" / "story_layout.json"))
-    parser.add_argument("--threshold", type=int, default=190)
+    parser.add_argument("--threshold", type=int, default=220)
     parser.add_argument("--contrast", type=float, default=1.0)
-    parser.add_argument("--despeckle", type=int, default=1)
+    parser.add_argument("--despeckle", type=int, default=0)
     parser.add_argument("--scale", type=int, default=3)
     args = parser.parse_args()
 

@@ -161,9 +161,9 @@ def emit_previews(stage_frames: list[tuple[int, Image.Image]], inks: list[np.nda
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--layout", default=str(LAYOUT))
-    parser.add_argument("--threshold", type=int, default=190)
+    parser.add_argument("--threshold", type=int, default=220)
     parser.add_argument("--contrast", type=float, default=1.0)
-    parser.add_argument("--despeckle", type=int, default=1)
+    parser.add_argument("--despeckle", type=int, default=0)
     parser.add_argument("--scale", type=int, default=3)
     args = parser.parse_args()
 
