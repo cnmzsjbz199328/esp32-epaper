@@ -5,8 +5,8 @@
 #define BSP_BOARD_MODULE        "ESP32-S3-PICO-1-N8R8"
 
 #define BSP_BOARD_VER_MAJOR     0
-#define BSP_BOARD_VER_MINOR     7
-#define BSP_BOARD_VER_PATCH     10
+#define BSP_BOARD_VER_MINOR     8
+#define BSP_BOARD_VER_PATCH     0
 
 #define BSP_BOARD_API_MAJOR     1
 #define BSP_BOARD_MATURITY      "draft"
@@ -23,6 +23,11 @@
 #define BSP_HAS_BATTERY         1
 #define BSP_HAS_PWR_LATCH       0
 #define BSP_HAS_WIFI            1
+
+/* Ecosystem BLE protocol capabilities implemented by the family-video app. */
+#define BSP_CAP_INPUT_REMOTE_KEY  1
+#define BSP_CAP_INPUT_REMOTE_TEXT 1
+#define BSP_CAP_CONFIG_WIFI       1
 
 /* 应用工程里关掉交互式全测试入口 —— 这里跑的是全家福应用，不是 bring-up。
  * 但**不要删除** selftest.cpp 和这个宏：开机时按住 BOOT 会进诊断模式，

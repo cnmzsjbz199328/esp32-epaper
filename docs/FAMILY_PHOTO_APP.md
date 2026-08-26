@@ -123,6 +123,12 @@ assets/generated/video_frames/
 
 触摸必须去抖：`bsp_touch_read()` 给的是 raw 坐标，没有事件队列。等待按下、等待抬起、再延时 180ms，避免一次触摸被读成多次。
 
+## BLE 遥控
+
+应用接入 ecosystem BLE protocol，沿用协议版本与 UUID，并以 `epaper_154` 作为板卡类型。启用的能力为 `input.remote.key`、`input.remote.text` 和 `config.wifi`，同时自动报告本板已有的显示、触摸、音频、SD 卡、电池与 Wi-Fi 能力。
+
+BLE `input.key` 的 `{"key":"right","event":"press"}` 映射为下一帧，`left` 映射为上一帧；其它按键事件由协议接受但在本应用中不产生动作。命令由 `ecp_ble_loop()` 在 Arduino loop 任务中通过 SPSC 队列派发，帧切换不会在 NimBLE host 任务中直接执行。该轮询也位于触摸等待循环内，以避免 ePaper 刷新或等待触摸时发生命令超时。
+
 ## 保留的诊断路径
 
 M0/M1 不属于退役应用，继续保留：

@@ -6,6 +6,7 @@
 #include "bsp_pins.h"
 #include "family_video_assets.h"
 #include "touch.h"
+#include "ecosystem_ble.h"
 
 #ifndef APP_PARTIAL_MAX_STREAK
 #define APP_PARTIAL_MAX_STREAK 4
@@ -71,6 +72,11 @@ static bool app_full_then_rebase(void)
 static void app_power_poll(void)
 {
     static uint32_t pwr_down_at = 0;
+
+    /* Keep BLE responsive during touch waits and long EPD refresh cycles.
+     * The epaper_154 reference board showed that servicing BLE only between
+     * input cycles causes command timeouts while these loops are blocked. */
+    ecp_ble_loop();
 
     if (bsp_button_pressed(BSP_BTN_PWR)) {
         if (pwr_down_at == 0) {
@@ -231,6 +237,17 @@ static void app_video_show_frame(int target)
                   fallback_ok ? "ok" : "FAIL");
 }
 
+extern "C" void bsp_remote_key_event(const char* key, const char* event, const char* char_val)
+{
+    (void)char_val;
+    if (!key || !event || strcmp(event, "press") != 0) return;
+    if (strcmp(key, "right") == 0) {
+        app_video_show_frame(s_video_frame + 1);
+    } else if (strcmp(key, "left") == 0) {
+        app_video_show_frame(s_video_frame - 1);
+    }
+}
+
 void app_family_video_setup(void)
 {
     Serial.printf("[video] family full-frame app, %d frames\n", APP_VIDEO_FRAME_COUNT);
@@ -247,6 +264,20 @@ void app_family_video_setup(void)
     }
     if (!bsp_ui_partial_begin()) {
         Serial.println("[video] WARN: partial_begin failed; will run on full refresh only");
+    }
+
+    bool ble_ok = false;
+    for (int attempt = 1; attempt <= 3 && !ble_ok; attempt++) {
+        ble_ok = ecp_ble_begin();
+        if (!ble_ok) {
+            Serial.printf("[BLE] init attempt %d/3 FAILED\n", attempt);
+            delay(500 * attempt);
+        }
+    }
+    if (!ble_ok) {
+        Serial.println("[BLE] ALL ATTEMPTS FAILED - device unreachable via BLE");
+        bsp_ui_printf("[WARN] BLE init failed\n");
+        bsp_ui_flush();
     }
     Serial.println("[video] touch RIGHT/LEFT = next/previous, long RIGHT/LEFT = final/first, hold PWR 3s = off");
 }

@@ -1,3 +1,19 @@
+# [0.8.0] - 2026-08-26
+
+Port the ecosystem BLE protocol into the family-video application.
+
+### Changes
+
+- Add the shared ecosystem protocol, NVS settings, logger, app state, and NimBLE GATT server implementation.
+- Enable `input.remote.key`, `input.remote.text`, and `config.wifi` capabilities and bump the board contract to v0.8.0.
+- Start BLE with retry/backoff and service it during touch waits so remote commands remain responsive during long ePaper operations.
+- Map remote `right`/`left` press events to next/previous family-video frames.
+- Document the BLE remote-control surface in `docs/FAMILY_PHOTO_APP.md`.
+
+### Validation
+
+- Pending hardware validation: build, flash, BLE protocol regression, remote frame navigation, and touch regression.
+
 # [0.7.10] - 2026-08-09
 
 Add an interactive all-test app for ePaper-1.54.
