@@ -1,17 +1,38 @@
 #include <Arduino.h>
 
 #include "app_diagnostics.h"
-#include "app_family_video.h"
 #include "bsp.h"
+#include "ecosystem_ble.h"
+#include "nvs_settings.h"
+#include "shell/shell.h"
 #include "touch.h"
+
+#if __has_include("wifi_secrets.local.h")
+#include "wifi_secrets.local.h"
+#define EPAPER_HAS_LOCAL_WIFI_SECRETS 1
+#else
+#define EPAPER_HAS_LOCAL_WIFI_SECRETS 0
+#endif
 
 #define APP_MODE_M0       1
 #define APP_MODE_M1       2
-#define APP_MODE_VIDEO    3
+#define APP_MODE_SHELL    3
 
 #ifndef APP_MODE
-#define APP_MODE APP_MODE_VIDEO
+#define APP_MODE APP_MODE_SHELL
 #endif
+
+static void provision_local_wifi_credentials()
+{
+#if EPAPER_HAS_LOCAL_WIFI_SECRETS
+    ecp::settings::WifiCredentials current;
+    const bool has_current = ecp::settings::get_wifi_credentials(current);
+    if (!has_current || current.ssid != EPAPER_WIFI_SSID || current.password != EPAPER_WIFI_PASSWORD) {
+        ecp::settings::set_wifi_credentials(EPAPER_WIFI_SSID, EPAPER_WIFI_PASSWORD);
+        Serial.println("[wifi] local credentials provisioned");
+    }
+#endif
+}
 
 void setup()
 {
@@ -23,6 +44,7 @@ void setup()
     while (!Serial && millis() - t0 < 2000) delay(10);
 
     Serial.println(bsp_version_string());
+    provision_local_wifi_credentials();
 
     if (app_boot_held_for_diagnostics()) {
         bsp_touch_init();
@@ -34,8 +56,9 @@ void setup()
         Serial.println("[touch] init failed; touch navigation disabled for this boot");
     }
 
-#if APP_MODE == APP_MODE_VIDEO
-    app_family_video_setup();
+#if APP_MODE == APP_MODE_SHELL
+    shell_ble_begin_with_retry();
+    shell_begin();
 #elif APP_MODE == APP_MODE_M0
     app_run_m0_diagnostics();
 #elif APP_MODE == APP_MODE_M1
@@ -47,8 +70,8 @@ void setup()
 
 void loop()
 {
-#if APP_MODE == APP_MODE_VIDEO
-    app_family_video_loop();
+#if APP_MODE == APP_MODE_SHELL
+    shell_tick();
 #else
     delay(1000);
 #endif

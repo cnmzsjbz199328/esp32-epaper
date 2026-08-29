@@ -5,7 +5,7 @@
 #define BSP_BOARD_MODULE        "ESP32-S3-PICO-1-N8R8"
 
 #define BSP_BOARD_VER_MAJOR     0
-#define BSP_BOARD_VER_MINOR     8
+#define BSP_BOARD_VER_MINOR     9
 #define BSP_BOARD_VER_PATCH     0
 
 #define BSP_BOARD_API_MAJOR     1

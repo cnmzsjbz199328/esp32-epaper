@@ -1,3 +1,23 @@
+# [0.9.0] - 2026-08-29
+
+Add the event-driven e-paper application shell and on-demand settings diagnostics.
+
+### Changes
+
+- Replace the compile-time video-only entry point with a 2x2 launcher and static app registry.
+- Centralize touch, BOOT/PWR long-press handling, BLE key routing, and full/partial refresh session handoff in `src/shell/`.
+- Add the `family_video` app with lazy ROM/SD frame sources and the fixed-size `FVID` container tool format.
+- Add a settings app with modal hardware selftest, M0/M1 diagnostics, WiFi status, and about/BOOT diagnostic entries.
+- Extract `bsp_shtc3_read()` and retain selftest records in a bounded RAM ring for the results page.
+- Accept `esc` as an alias for the BLE `back` key and bump the board version to v0.9.0.
+
+### Validation
+
+- `pio run -e epaper_154`, `pio run -e epaper_154_m0`, and `pio run -e epaper_154_m1` passed.
+- ESP32-S3-PICO-1 / 8MB Flash / 8MB PSRAM flashed successfully on COM9; hash verification passed.
+- Boot smoke log confirms FT6336 init, BLE advertising, PSRAM framebuffer, full refresh, and partial-refresh session startup.
+- Manual validation still pending: launcher touch navigation, SHTC3 status refresh, FVID SD fallback, and modal selftest bus recovery.
+
 # [0.8.0] - 2026-08-26
 
 Port the ecosystem BLE protocol into the family-video application.

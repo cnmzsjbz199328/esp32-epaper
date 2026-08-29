@@ -266,6 +266,25 @@ PWR/BAT_KEY 动态按压已通过，可以作为应用中的长按关机、保�
 
 ## 应用开发检查清单
 
+## App shell navigation
+
+The application build now starts in an event-driven 2x2 launcher. The top status
+bar shows SHTC3 temperature/humidity, BLE connection state, and the coarse battery
+percentage. `family_video` is a full-screen app; `settings` keeps the status bar
+visible. Every app switch performs one centralized full-refresh session handoff,
+then the app uses partial refreshes for event-driven content changes.
+
+Touching a launcher cell or pressing Cardputer `enter` opens the selected app.
+`left/right/up/down` move the launcher selection. A runtime BOOT hold of at least
+1.5 seconds, or BLE `back`/`esc`, returns to the previous level; from an app that
+means the launcher. A BOOT hold during the first 800 ms after reset remains the
+separate escape hatch into the interactive hardware diagnostics app. PWR held for
+3 seconds clears the framebuffer, performs a final full refresh, and powers off.
+
+Hardware selftest is intentionally modal: it may replace the Wire I2C driver and
+drive EPD directly. When it finishes, the shell reinstalls the touch/Wire path and
+rebuilds the full-refresh/partial-refresh baseline before returning to Settings.
+
 每次做完较大的应用改动，至少检查：
 
 ```powershell

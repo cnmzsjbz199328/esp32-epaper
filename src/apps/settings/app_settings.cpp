@@ -1,0 +1,195 @@
+#include "app_settings.h"
+
+#include <Arduino.h>
+#include <stdio.h>
+#include <string.h>
+
+#include "diag_runner.h"
+#include "../../app_diagnostics.h"
+#include "bsp.h"
+#include "bsp_pins.h"
+#include "../../shell/shell.h"
+#include "../../../lib/nvs_settings/nvs_settings.h"
+
+namespace {
+enum settings_page_t { PAGE_LIST, PAGE_RESULTS, PAGE_DETAIL };
+settings_page_t s_page = PAGE_LIST;
+int s_selected = 0;
+int s_result_scroll = 0;
+constexpr int ITEM_COUNT = 6;
+const char* const ITEMS[ITEM_COUNT] = {
+    "HARDWARE TEST", "M0 STATIC FRAME", "M1 PARTIAL WALK", "BOOT DIAGNOSTIC", "WIFI STATUS", "ABOUT"
+};
+
+void draw_line(int y, const char* text, bool selected)
+{
+    if (selected) bsp_ui_fb_fill_rect(2, y - 2, BSP_EPD_W - 4, 13, true);
+    if (selected) {
+        uint8_t* fb = bsp_ui_fb();
+        /* Text is black-on-white; invert selected rows by using a small white
+         * background glyph pass after the selection stripe. */
+        (void)fb;
+    }
+    bsp_ui_fb_draw_text(7, y, text, 1);
+}
+
+void render_list(void)
+{
+    bsp_ui_fb_fill_rect(0, 26, BSP_EPD_W, BSP_EPD_H - 26, false);
+    bsp_ui_fb_draw_text(5, 29, "SETTINGS", 1);
+    for (int i = 0; i < ITEM_COUNT; i++) {
+        char line[28];
+        snprintf(line, sizeof(line), "%c %s", i == s_selected ? '>' : ' ', ITEMS[i]);
+        draw_line(45 + i * 25, line, false);
+    }
+    bsp_ui_fb_draw_text(5, 184, "ENTER run  ESC home", 1);
+}
+
+const char* result_tag(bsp_selftest_result_t outcome)
+{
+    switch (outcome) {
+        case BSP_SELFTEST_PASS: return "PASS";
+        case BSP_SELFTEST_WARN: return "WARN";
+        default: return "FAIL";
+    }
+}
+
+void render_results(void)
+{
+    bsp_ui_fb_fill_rect(0, 26, BSP_EPD_W, BSP_EPD_H - 26, false);
+    char line[40];
+    snprintf(line, sizeof(line), "TEST P%d W%d F%d",
+             bsp_selftest_count(BSP_SELFTEST_PASS),
+             bsp_selftest_count(BSP_SELFTEST_WARN),
+             bsp_selftest_count(BSP_SELFTEST_FAIL));
+    bsp_ui_fb_draw_text(5, 29, line, 1);
+    const int count = (int)bsp_selftest_record_count();
+    const int visible = 9;
+    for (int row = 0; row < visible; row++) {
+        const int index = s_result_scroll + row;
+        if (index >= count) break;
+        bsp_selftest_record_t record;
+        if (!bsp_selftest_record_at((size_t)index, &record)) continue;
+        snprintf(line, sizeof(line), "%02d %s %s", index + 1, result_tag(record.outcome), record.item ? record.item : "?");
+        bsp_ui_fb_draw_text(5, 45 + row * 15, line, 1);
+    }
+    bsp_ui_fb_draw_text(5, 184, "UP/DN scroll  ESC back", 1);
+}
+
+void render_about(void)
+{
+    bsp_ui_fb_fill_rect(0, 26, BSP_EPD_W, BSP_EPD_H - 26, false);
+    bsp_ui_fb_draw_text(5, 30, "ABOUT", 1);
+    bsp_ui_fb_draw_text(5, 48, bsp_version_string(), 1);
+    bsp_ui_fb_draw_text(5, 66, "BLE remote + SD FVID", 1);
+    bsp_ui_fb_draw_text(5, 84, "BOOT hold: diagnostics", 1);
+    bsp_ui_fb_draw_text(5, 184, "ESC back", 1);
+}
+
+void render_wifi(void)
+{
+    ecp::settings::WifiCredentials creds;
+    const bool configured = ecp::settings::get_wifi_credentials(creds);
+    bsp_ui_fb_fill_rect(0, 26, BSP_EPD_W, BSP_EPD_H - 26, false);
+    bsp_ui_fb_draw_text(5, 30, "WIFI STATUS", 1);
+    bsp_ui_fb_draw_text(5, 52, configured ? "CONFIGURED" : "NOT CONFIGURED", 1);
+    if (configured) bsp_ui_fb_draw_text(5, 70, creds.ssid.c_str(), 1);
+    bsp_ui_fb_draw_text(5, 92, "SET VIA BLE config.wifi", 1);
+    bsp_ui_fb_draw_text(5, 184, "ESC back", 1);
+}
+
+void refresh_page(void)
+{
+    if (s_page == PAGE_RESULTS) render_results();
+    else render_list();
+    if (!bsp_ui_flush_partial()) Serial.println("[settings] partial refresh failed");
+}
+
+void run_selected(void)
+{
+    if (s_selected == 0) {
+        s_page = PAGE_RESULTS;
+        s_result_scroll = 0;
+        render_results();
+        (void)bsp_ui_flush_partial();
+        shell_suspend_active();
+        diag_runner_run_full();
+        shell_resume_active();
+    } else if (s_selected == 1) {
+        shell_suspend_active();
+        app_run_m0_diagnostics();
+        shell_resume_active();
+    } else if (s_selected == 2) {
+        shell_suspend_active();
+        app_run_m1_diagnostics();
+        shell_resume_active();
+    } else if (s_selected == 3) {
+        shell_suspend_active();
+        app_run_boot_diagnostics();
+    } else if (s_selected == 4) {
+        s_page = PAGE_DETAIL;
+        render_wifi();
+        (void)bsp_ui_flush_partial();
+    } else if (s_selected == 5) {
+        s_page = PAGE_DETAIL;
+        render_about();
+        (void)bsp_ui_flush_partial();
+    }
+}
+
+void handle_event(const shell_event_t& event)
+{
+    if (event.kind == SHELL_EV_HOME) { shell_show_launcher(); return; }
+    if (event.kind == SHELL_EV_BACK) {
+        if (s_page != PAGE_LIST) { s_page = PAGE_LIST; refresh_page(); }
+        else shell_show_launcher();
+        return;
+    }
+    if (event.kind == SHELL_EV_TAP) {
+        if (s_page == PAGE_RESULTS) return;
+        if (event.y >= 40 && event.y < 40 + ITEM_COUNT * 25) {
+            s_selected = min(ITEM_COUNT - 1, max(0, (int)((event.y - 40) / 25)));
+            run_selected();
+        }
+        return;
+    }
+    if (event.kind == SHELL_EV_KEY) app_settings_on_key(event.key, event.event);
+}
+}
+
+void app_settings_on_enter(void)
+{
+    if (s_page == PAGE_RESULTS) render_results();
+    else if (s_page == PAGE_DETAIL) {
+        if (s_selected == 4) render_wifi();
+        else render_about();
+    }
+    else render_list();
+    (void)bsp_ui_flush_partial();
+}
+
+void app_settings_on_exit(void) {}
+
+void app_settings_tick(void)
+{
+    handle_event(shell_wait_event(60000));
+}
+
+void app_settings_on_key(const char* key, const char* event)
+{
+    if (!key || !event || (strcmp(event, "press") != 0 && strcmp(event, "down") != 0)) return;
+    if (s_page == PAGE_RESULTS) {
+        if (strcmp(key, "up") == 0 && s_result_scroll > 0) { s_result_scroll--; refresh_page(); }
+        else if (strcmp(key, "down") == 0 && s_result_scroll + 9 < (int)bsp_selftest_record_count()) { s_result_scroll++; refresh_page(); }
+        else if (strcmp(key, "back") == 0 || strcmp(key, "esc") == 0) { s_page = PAGE_LIST; refresh_page(); }
+        return;
+    }
+    if (s_page == PAGE_DETAIL) {
+        if (strcmp(key, "back") == 0 || strcmp(key, "esc") == 0) { s_page = PAGE_LIST; refresh_page(); }
+        return;
+    }
+    if (strcmp(key, "up") == 0) { s_selected = (s_selected + ITEM_COUNT - 1) % ITEM_COUNT; refresh_page(); }
+    else if (strcmp(key, "down") == 0) { s_selected = (s_selected + 1) % ITEM_COUNT; refresh_page(); }
+    else if (strcmp(key, "enter") == 0) run_selected();
+    else if (strcmp(key, "back") == 0 || strcmp(key, "esc") == 0) shell_show_launcher();
+}

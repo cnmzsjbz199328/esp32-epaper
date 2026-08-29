@@ -474,6 +474,7 @@ void handle_input_key(uint32_t rid, JsonDocument& request)
     }
     bool valid_key = (strcmp(key, "up") == 0 || strcmp(key, "down") == 0 || strcmp(key, "left") == 0 ||
                       strcmp(key, "right") == 0 || strcmp(key, "enter") == 0 || strcmp(key, "back") == 0 ||
+                      strcmp(key, "esc") == 0 || strcmp(key, "home") == 0 ||
                       strcmp(key, "space") == 0 || strcmp(key, "char") == 0 || strcmp(key, "backspace") == 0);
     bool valid_event = (strcmp(event, "down") == 0 || strcmp(event, "up") == 0 ||
                         strcmp(event, "repeat") == 0 || strcmp(event, "press") == 0);
@@ -803,6 +804,15 @@ void ecp_ble_loop(void)
     if (millis() - appState.last_state_notify < STATE_NOTIFY_INTERVAL_MS) return;
     appState.last_state_notify = millis();
     publish_state();
+#endif
+}
+
+bool ecp_ble_connected(void)
+{
+#if defined(ECP_BLE_DISABLED) && ECP_BLE_DISABLED
+    return false;
+#else
+    return s_state && NimBLEDevice::getServer() && NimBLEDevice::getServer()->getConnectedCount() > 0;
 #endif
 }
 

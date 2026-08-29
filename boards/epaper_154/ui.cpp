@@ -546,6 +546,30 @@ static void ui_draw_char(uint8_t* frame, uint16_t x, uint16_t y, char c)
     }
 }
 
+static inline void fb_set_pixel(int x, int y, bool black);
+
+void bsp_ui_fb_draw_text(int x, int y, const char* text, uint8_t scale)
+{
+    if (!text || scale == 0) return;
+    for (const char* p = text; *p; p++) {
+        if (*p == '\n') {
+            y += 8 * scale;
+            x = 0;
+            continue;
+        }
+        const uint8_t* glyph = ui_glyph_5x7(*p);
+        for (uint8_t col = 0; col < 5; col++) {
+            for (uint8_t row = 0; row < 7; row++) {
+                if (!(glyph[col] & (uint8_t)(1u << row))) continue;
+                for (uint8_t sy = 0; sy < scale; sy++)
+                    for (uint8_t sx = 0; sx < scale; sx++)
+                        fb_set_pixel(x + col * scale + sx, y + row * scale + sy, true);
+            }
+        }
+        x += 6 * scale;
+    }
+}
+
 static void ui_render_text_frame(uint8_t* frame, size_t len)
 {
     memset(frame, 0xFF, len);

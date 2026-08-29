@@ -2,6 +2,9 @@
 #include <WiFi.h>
 #include <stdarg.h>
 #include "bsp.h"
+#include "app_state.h"
+
+#include <string.h>
 
 /* ===========================================================================
  * 自检汇报与计数
@@ -18,6 +21,9 @@ static int s_fail = 0;
 void bsp_selftest_begin(void)
 {
     s_pass = s_warn = s_fail = 0;
+    AppState& state = AppState::getInstance();
+    state.selftest_record_count = 0;
+    memset(state.selftest_records, 0, sizeof(state.selftest_records));
 }
 
 void bsp_selftest_report(bsp_selftest_result_t r, const char* name, const char* fmt, ...)
@@ -35,7 +41,28 @@ void bsp_selftest_report(bsp_selftest_result_t r, const char* name, const char* 
     vsnprintf(detail, sizeof(detail), fmt, args);
     va_end(args);
 
+    AppState& state = AppState::getInstance();
+    if (state.selftest_record_count < AppState::SELFTEST_RECORD_CAPACITY) {
+        bsp_selftest_record_t& record = state.selftest_records[state.selftest_record_count++];
+        record.item = name;
+        record.outcome = r;
+        snprintf(record.detail, sizeof(record.detail), "%s", detail);
+    }
+
     bsp_ui_printf("[%s] %-6s %s\n", tag, name, detail);
+}
+
+size_t bsp_selftest_record_count(void)
+{
+    return AppState::getInstance().selftest_record_count;
+}
+
+bool bsp_selftest_record_at(size_t index, bsp_selftest_record_t* out)
+{
+    const AppState& state = AppState::getInstance();
+    if (!out || index >= state.selftest_record_count) return false;
+    *out = state.selftest_records[index];
+    return true;
 }
 
 int bsp_selftest_count(bsp_selftest_result_t r)

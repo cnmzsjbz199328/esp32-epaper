@@ -21,6 +21,12 @@ typedef enum {
     BSP_SELFTEST_FAIL
 } bsp_selftest_result_t;
 
+typedef struct {
+    const char* item;
+    bsp_selftest_result_t outcome;
+    char detail[64];
+} bsp_selftest_record_t;
+
 #ifdef __cplusplus
 }
 #endif

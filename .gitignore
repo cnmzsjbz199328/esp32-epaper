@@ -14,6 +14,9 @@
 *.o
 *.a
 
+# Local device credentials
+include/wifi_secrets.local.h
+
 # Python (tools/)
 __pycache__/
 *.pyc

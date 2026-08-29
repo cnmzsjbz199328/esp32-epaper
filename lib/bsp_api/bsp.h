@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdarg.h>
 
 #include "bsp_types.h"
@@ -16,6 +17,9 @@ void        bsp_board_init(void);
 void        bsp_power_off(void);
 bool        bsp_button_pressed(bsp_btn_t b);  /* 本板没有该键时恒返回 false */
 const char* bsp_button_name(bsp_btn_t b);     /* 返回丝印名；没有该键返回 NULL */
+bool        bsp_shtc3_read(float* t_c, float* rh);
+uint32_t    bsp_battery_mv(void);
+int         bsp_battery_level(void);
 
 /* ── 自检汇报（实现在 lib/bsp_core/selftest.cpp，板级共用） ──
  * 所有自检项必须走 bsp_selftest_report()，不要直接 bsp_ui_printf 打 [PASS] ——
@@ -26,6 +30,8 @@ void bsp_selftest_begin(void);
 void bsp_selftest_report(bsp_selftest_result_t r, const char* name, const char* fmt, ...);
 void bsp_selftest_summary(void);   /* 打印汇总行 */
 int  bsp_selftest_count(bsp_selftest_result_t r);
+size_t bsp_selftest_record_count(void);
+bool bsp_selftest_record_at(size_t index, bsp_selftest_record_t* out);
 
 /* 板级专属自检项，由各板 selftest.cpp 实现 */
 void bsp_selftest_board_specific(void);
@@ -50,6 +56,7 @@ uint8_t* bsp_ui_fb(void);
 uint32_t bsp_ui_fb_len(void);
 void     bsp_ui_fb_clear(uint8_t value);       /* 0xFF = 全白，0x00 = 全黑 */
 void     bsp_ui_fb_fill_rect(int x, int y, int w, int h, bool black);
+void     bsp_ui_fb_draw_text(int x, int y, const char* text, uint8_t scale);
 
 /* mask 传 NULL = 整个 w*h 矩形都算图形。抠像人物**必须**给 mask，
  * 否则矩形框会连同框内背景一起糊上去。见 docs/FAMILY_PHOTO_APP.md。 */

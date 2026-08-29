@@ -15,6 +15,7 @@
 #define APP_STATE_H
 
 #include <Arduino.h>
+#include "bsp_types.h"
 
 /**
  * Centralized application state – singleton.
@@ -42,6 +43,10 @@ public:
 
     /* ── BLE state tracking ────────────────────────────────── */
     uint32_t last_state_notify = 0;
+
+    static constexpr size_t SELFTEST_RECORD_CAPACITY = 24;
+    bsp_selftest_record_t selftest_records[SELFTEST_RECORD_CAPACITY] = {};
+    size_t selftest_record_count = 0;
 
     /* ── Convenience reset ─────────────────────────────────── */
     void resetGameState() {

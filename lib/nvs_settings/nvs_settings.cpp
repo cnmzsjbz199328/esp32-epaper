@@ -26,8 +26,8 @@ void init(void)
 bool get_wifi_credentials(WifiCredentials& creds)
 {
     init();
-    creds.ssid = s_prefs.getString(KEY_WIFI_SSID, "");
-    creds.password = s_prefs.getString(KEY_WIFI_PASS, "");
+    creds.ssid = s_prefs.isKey(KEY_WIFI_SSID) ? s_prefs.getString(KEY_WIFI_SSID) : "";
+    creds.password = s_prefs.isKey(KEY_WIFI_PASS) ? s_prefs.getString(KEY_WIFI_PASS) : "";
     creds.valid = (creds.ssid.length() > 0);
     return creds.valid;
 }
@@ -79,4 +79,3 @@ bool set_brightness(uint8_t brightness)
 
 }  // namespace settings
 }  // namespace ecp
-

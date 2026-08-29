@@ -11,6 +11,7 @@ Config-driven CLI:
 
 import argparse
 import json
+import struct
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -194,6 +195,25 @@ extern const int APP_VIDEO_FRAME_COUNT;
     (out_dir / f"{output_prefix}_assets.c").write_text("\n".join(parts), encoding="utf-8")
 
 
+def emit_fvid(frames, hints, width, height, out_dir, output_prefix):
+    """Write the lazy-load SD container consumed by frame_source_sd.cpp."""
+    frame_len = width * height // 8
+    if frame_len != 5000:
+        raise ValueError("FVID currently requires the panel-native 200x200 framebuffer")
+    payload = bytearray(struct.pack("<4sBBHHH4s", b"FVID", 1, 0, width, height,
+                                    len(frames), b"\0\0\0\0"))
+    hint_values = {HINT_PARTIAL: 0, HINT_FULL: 1, HINT_FINAL_FULL: 2}
+    for frame, hint in zip(frames, hints):
+        raw = bytes(int(value) for value in frame)
+        if len(raw) != frame_len:
+            raise ValueError(f"frame length {len(raw)} != {frame_len}")
+        payload.extend(bytes((hint_values[hint], 0, 0, 0)))
+        payload.extend(raw)
+    path = out_dir / f"{output_prefix}.fvid"
+    path.write_bytes(payload)
+    return path
+
+
 def ink_to_image(ink, scale):
     img = Image.fromarray(np.where(ink, 0, 255).astype(np.uint8), "L")
     return img.resize((ink.shape[1] * scale, ink.shape[0] * scale),
@@ -275,6 +295,7 @@ def parse_args():
     ap.add_argument("--frame-dir", default=str(FRAME_DIR))
     ap.add_argument("--scale", type=int, default=3)
     ap.add_argument("--output-prefix", default="family_video")
+    ap.add_argument("--format", choices=["c", "fvid"], default="c")
     ap.add_argument("--crop-offset-x", type=int, default=0)
     ap.add_argument("--crop-offset-y", type=int, default=0)
     ap.add_argument("--crop-scale", type=float, default=1.0)
@@ -284,6 +305,7 @@ def parse_args():
         cfg = load_config(args.config)
         args.video = cfg.get("input", args.video)
         args.output_prefix = cfg.get("output_prefix", args.output_prefix)
+        args.format = cfg.get("format", args.format)
         args.size = int(cfg.get("size", args.size))
         args.threshold = int(cfg.get("threshold", args.threshold))
         args.dither = cfg.get("dither", args.dither)
@@ -358,8 +380,11 @@ def main():
         print(f"{idx:02d} {tc} -> {seconds:.3f}s ink {100 * ink.mean():.1f}% "
               f"changed {changed:.1f}% {hint} {processed}")
 
-    emit_assets(frames, [r["hint"] for r in records], args.size, args.size,
-                out_dir, args.output_prefix)
+    hints = [r["hint"] for r in records]
+    if args.format == "c":
+        emit_assets(frames, hints, args.size, args.size, out_dir, args.output_prefix)
+    else:
+        print(f"fvid: {emit_fvid(frames, hints, args.size, args.size, out_dir, args.output_prefix)}")
     emit_previews(records, out_dir, args.output_prefix, args.scale)
     emit_manifest(records, args, fps, out_dir, args.output_prefix)
     print(f"\nwrote {len(frames)} frames -> {out_dir}")
