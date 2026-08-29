@@ -13,7 +13,7 @@ namespace {
 int s_selected = 0;
 constexpr int GRID_TOP = 34;
 constexpr int CELL_W = 88;
-constexpr int CELL_H = 80;
+constexpr int CELL_H = 82;
 
 void draw_selection(int slot, bool black)
 {
@@ -23,7 +23,7 @@ void draw_selection(int slot, bool black)
     const char* title = slot < app_registry_count() ? entries[slot].title : "";
     const int title_width = (int)strlen(title) * 6;
     const int x = col * CELL_W + (CELL_W - title_width) / 2;
-    const int y = GRID_TOP + row * CELL_H + 79;
+    const int y = GRID_TOP + row * CELL_H + 83;
     bsp_ui_fb_fill_rect(x, y, title_width, 1, black);
 }
 
@@ -40,7 +40,7 @@ void draw_slot(int slot, const app_entry_t* app)
                            app->icon, nullptr, false);
         const int title_width = (int)strlen(app->title) * 6;
         const int title_x = cell_x + (CELL_W - title_width) / 2;
-        bsp_ui_fb_draw_text(title_x, cell_y + 71, app->title, 1);
+        bsp_ui_fb_draw_text(title_x, cell_y + 75, app->title, 1);
     } else {
         bsp_ui_fb_fill_rect(cell_x + 32, cell_y + 30, 24, 2, false);
         bsp_ui_fb_fill_rect(cell_x + 43, cell_y + 19, 2, 24, false);

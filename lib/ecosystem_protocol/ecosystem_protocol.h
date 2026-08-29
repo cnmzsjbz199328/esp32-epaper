@@ -32,6 +32,8 @@ constexpr const char* OP_CONFIG_WIFI_SET = "config.wifi.set";
 constexpr const char* OP_CONFIG_WIFI_CLEAR = "config.wifi.clear";
 constexpr const char* OP_CONFIG_VOLUME_SET = "config.volume.set";
 constexpr const char* OP_CONFIG_BRIGHTNESS_SET = "config.brightness.set";
+// usage app extension (board contract 0.10.0)
+constexpr const char* OP_USAGE_PUSH = "usage.push";
 
 constexpr const char* CODE_OK = "OK";
 constexpr const char* CODE_BAD_REQUEST = "BAD_REQUEST";
@@ -58,4 +60,6 @@ constexpr const char* CAP_CONFIG_VOLUME     = "config.volume";
 constexpr const char* CAP_CONFIG_BRIGHTNESS = "config.brightness";
 constexpr const char* CAP_UI_NAV            = "ui.nav";
 constexpr const char* CAP_APP_DEMO          = "app.demo";
+// usage app extension (board contract 0.10.0)
+constexpr const char* CAP_USAGE             = "usage";
 }  // namespace ecp

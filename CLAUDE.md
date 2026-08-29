@@ -125,6 +125,76 @@ that "looks right" does not count as passing.
 partial refresh comes out flipped or row-shifted — the reference `EPD_Init_Partial()`
 hard-resets without re-applying entry mode `0x11` / window registers.
 
+### App shell UI design system
+
+Every screen under `src/shell/` and `src/apps/` is drawn with the same primitive,
+`bsp_ui_fb_draw_text(x, y, text, scale)` — a 5×7 bitmap font, always black ink, no
+background fill. Keep new screens visually consistent with the existing launcher /
+settings / usage pages by following these measured conventions. They are not arbitrary;
+they come from the font metrics and the 200×200 panel, and drifting from them makes
+partial-refresh regions and tap hit-tests disagree with what's on screen.
+
+**Font metrics (do the math with these, never eyeball).** At `scale` s: glyph is 5×7 px,
+horizontal advance is `6*s` px per character (5 glyph + 1 gap), newline advance is `8*s`
+px. `y` passed to `bsp_ui_fb_draw_text` is the **top** of the glyph, not a baseline. So a
+string is `strlen*6*s` px wide and 7*s px tall. Standard body text is `scale = 1`; no
+screen currently uses a larger scale for prose. Centre a label with
+`x = box_x + (box_w - strlen*6) / 2`; right-align with
+`x = BSP_EPD_W - strlen*6 - 2` (the status bar's right margin).
+
+**Status bar** (`status_bar.cpp`, drawn by the shell for every `fullscreen == false`
+app): height `STATUS_H = 26`, full 200 px wide. Text sits at `y = 7` (≈7 px top padding,
+7 px glyph, ~4 px to the rule). Left string at `x = 2`, right string right-aligned with a
+2 px margin. A 1 px black rule closes it at `y = 25`. It self-refreshes every 30 s.
+Do not draw app content above `y = 26`.
+
+**Content region.** Non-fullscreen apps own `y = 26 .. 199` and clear it with
+`bsp_ui_fb_fill_rect(0, 26, BSP_EPD_W, BSP_EPD_H - 26, false)` on entry. Fullscreen apps
+(`app_family_video`) skip the status bar and own all 200×200.
+
+**Page / section title:** `scale 1`, ALL CAPS, drawn at `x = 5, y = 29` (settings pages
+use 29–30; usage sections use `y = top`). Left margin for all body text is `x = 5`
+(the status bar and bar-chart labels are the sole `x = 2` exceptions).
+
+**Footer / key-hint line:** `scale 1` at `x = 5, y = 184`, e.g. `"ENTER run  ESC home"`,
+`"ESC back"`, `"LEFT/RIGHT focus  ESC back"`. Always the last line on the screen.
+
+**Menu lists** (`app_settings.cpp`): first row at `y = 42`, row pitch **21 px**. The
+selection stripe is `bsp_ui_fb_fill_rect(2, y - 2, BSP_EPD_W - 4, 13, true)`. The tap
+hit-test must match the layout: `index = (tap_y - 37) / 21`, valid while
+`37 <= tap_y < 37 + COUNT*21`. Dense read-only rows (results, usage detail) use a
+tighter 15–20 px pitch starting at `y = 45`–`52`.
+
+**Launcher grid** (`launcher.cpp`): 2×2, `GRID_TOP = 34`, `CELL_W = 88`, `CELL_H = 82`
+(34 + 2×82 = 198, fits). Per cell: icon at the top, centred horizontally
+(`icon_x = cell_x + (CELL_W - SHELL_ICON_W) / 2`), then the title `scale 1` centred at
+`y = cell_y + 75` (the last ~5 px overlap the 80 px icon on purpose — the cell is 2 px
+shorter than icon+title). Selected item gets a 1 px underline the width of its title at
+`y = GRID_TOP + row*CELL_H + 83`. Empty slots draw a faint `+` from two rects at the cell
+centre.
+
+**Icons:** `SHELL_ICON_W = SHELL_ICON_H = 80`, 1bpp **panel-native** (1 = black ink),
+`SHELL_ICON_LEN = 800` bytes, one `extern const uint8_t SHELL_ICON_*[SHELL_ICON_LEN]` per
+app in `assets/generated/icons.{h,c}`. Blitted with `bsp_ui_draw_bitmap(..., nullptr,
+false)`. Icons are original glyph art (bars / gauge / grid) — no third-party mascots or
+proprietary fonts (see `docs/USAGE_APP_PLAN.md` §1).
+
+**Horizontal progress bars** (`app_usage.cpp` `draw_bar`): 2-char label at `x = 2`; bar
+box at `x = 22, w = 104, h = 12` with a 1 px border; fill inset 2 px on every side
+(`fill_rect(x+2, y+2, (w-4)*pct/100, h-4)`, nothing drawn at `pct == 0`); numeric `%`
+column at `x = 130` (`"%3u%%"`); a secondary/countdown column at `x = 174`. Stacked bars
+use a **16 px** vertical pitch. "Due / expired" state replaces the fill with a diagonal
+hatch and a `~` marker rather than a number.
+
+**Divider rules:** 1 px black line for a minor separator, 2 px for a major one
+(`app_usage.cpp` uses `y = 72` minor between providers, `y = 120` major above the
+banner). An emphasis box around a warning row is a 1 px rectangle, ~16 px tall, full
+width — never inverse video or blink (ugly and refresh-expensive on e-paper).
+
+**Vertical rhythm within an app section:** provider sections in the usage overview are
+48 px tall (`top = 28 + slot*48`); info lines below a heading step 14–18 px. When adding
+a screen, pick one pitch from {14, 16, 18, 21} and stay on it.
+
 ### Retired attempt lesson
 
 The retired first app was useful but should not be revived as the default: it looked

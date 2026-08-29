@@ -21,6 +21,8 @@ pio device monitor -p COM9 -b 115200
 
 Follow the existing C/C++ style: 4-space indentation, braces on their own line for functions, compact braces for short control blocks where already used, and `snake_case` for functions and local helpers. BSP symbols use the existing `bsp_*` and `BSP_*` prefixes. Keep board-specific constants in `bsp_pins.h`; do not hard-code GPIO values elsewhere. Comments should explain hardware rationale, provenance, or non-obvious sequencing rather than restating code.
 
+UI screens under `src/shell/` and `src/apps/` follow the shared layout spec in `CLAUDE.md` -> "App shell UI design system" (font metrics, margins, title/footer positions, launcher grid, icon size, progress-bar geometry). Keep new screens on those conventions.
+
 ## Testing Guidelines
 
 There are no unit tests in this repository. Verification is hardware-oriented: build cleanly, flash the board, inspect the e-paper output, and check serial logs. Failure keywords include `FAIL`, `WARN`, `panic`, `abort`, `error`, `Guru Meditation`, and `rst:`. Holding BOOT during the first 800 ms after reset enters the retained diagnostic path; do not remove diagnostic files as cleanup.

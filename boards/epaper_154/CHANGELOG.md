@@ -1,3 +1,22 @@
+# [0.10.0] - 2026-08-29
+
+Add the dual-provider usage app and low-frequency Windows host push path.
+
+### Changes
+
+- Add `usage.push`, `CAP_USAGE`, a bounded Claude/Codex snapshot model, and a
+  partial-refresh usage page with stale and reset-window handling.
+- Add the original dashboard launcher icon, settings-page push status, and the
+  Windows-first `tools/usage_push.py` host bridge.
+
+### Validation
+
+- Required release checks: all three PlatformIO environments, BLE payload
+  regression for malformed JSON/missing fields/long `ccm`/near-256-byte input,
+  and Windows host-script dry-run.
+- Hardware validation remains pending for usage-page partial `busy_ms` (target
+  300–500ms); this entry does not claim a hardware run.
+
 # [0.9.0] - 2026-08-29
 
 Add the event-driven e-paper application shell and on-demand settings diagnostics.

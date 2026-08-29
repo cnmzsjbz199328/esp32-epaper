@@ -179,6 +179,39 @@ static int wait_touch_nav()
 
 当前 `bsp_touch_read()` 给的是 raw 坐标，没有旋转校正、长按状态机或事件队列。应用若需要复杂控件，应先在应用层做一个很薄的事件封装，再考虑沉到 BSP。
 
+## Usage app and host bridge
+
+The launcher `USAGE` page accepts one `usage.push` command per provider. Write
+JSON to the existing command characteristic
+`7e0d0003-7b83-4b74-9d5c-6b5851120001`:
+
+| Field | Meaning |
+|---|---|
+| `p` | `claude`, `codex`, or an unused provider slot |
+| `s`, `sr` | 5-hour usage percentage and minutes to reset |
+| `w`, `wr` | 7-day usage percentage and minutes to reset |
+| `st`, `acct`, `ok` | limit state, optional account tier, and health flag |
+| `cc`, `ccm` | optional Claude Code hook state and message; `ccm` is truncated to 63 bytes |
+
+Example: `{"v":1,"rid":1,"op":"usage.push","p":"claude","s":42,"sr":167,"w":73,"wr":5040,"st":"allowed_warning","ok":true}`.
+The firmware retains the latest snapshot per provider, locally ages reset
+windows, and marks a provider `NO HOST` after seven hours without a push.
+
+On Windows, install `bleak` and run the one-process bridge:
+
+```powershell
+python -m pip install bleak
+python tools\usage_push.py --once
+python tools\usage_push.py --interval 21600
+python tools\usage_push.py --dry-run --provider claude,codex
+```
+
+Claude uses `claude -p "/usage" --output-format json --no-session-persistence`.
+Codex uses `codex app-server --listen stdio://` and
+`account/rateLimits/read`, with rollout JSONL as an offline fallback. The
+private OAuth usage endpoint is selected with `--claude-source oauth` only as a
+fallback; its bearer token is used in memory and never printed.
+
 ## 温湿度与 RTC
 
 基础测试中的 SHTC3 和 RTC 读法在 `selftest.cpp` 里已经验证，但目前主要是测试函数，不是完整公共 API。开发实际应用时有两种选择：

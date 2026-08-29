@@ -8,6 +8,7 @@
 
 #include "bsp.h"
 #include "ecosystem_protocol.h"
+#include "usage_types.h"
 #include "nvs_settings.h"
 #include "logger.h"
 #include "app_state.h"
@@ -26,6 +27,7 @@ __attribute__((weak)) void bsp_remote_imu_event(int16_t ax, int16_t ay, int16_t 
 __attribute__((weak)) void bsp_remote_volume_event(uint8_t volume) {}
 __attribute__((weak)) void bsp_app_state_json(JsonObject& app) {}
 __attribute__((weak)) void bsp_text_prompt_state(JsonObject& state) {}
+__attribute__((weak)) void usage_model_apply(const usage_snapshot_t*) {}
 }
 
 namespace {
@@ -118,6 +120,9 @@ void add_capabilities(JsonArray caps)
 #endif
 #if defined(BSP_CAP_APP_DEMO) && BSP_CAP_APP_DEMO
     caps.add(ecp::CAP_APP_DEMO);
+#endif
+#if defined(BSP_CAP_USAGE) && BSP_CAP_USAGE
+    caps.add(ecp::CAP_USAGE);
 #endif
 }
 
@@ -651,7 +656,51 @@ void handle_config_brightness_set(uint32_t rid, JsonDocument& request)
 #endif
 }
 
+void handle_usage_push(uint32_t rid, JsonDocument& request)
+{
+#if defined(BSP_CAP_USAGE) && BSP_CAP_USAGE
+    if (!request["s"].is<int>() || !request["w"].is<int>()) {
+        notify_response(rid, false, ecp::CODE_BAD_REQUEST, "s and w required");
+        return;
+    }
 
+    const int session = request["s"].as<int>();
+    const int week = request["w"].as<int>();
+    if (session < 0 || session > 100 || week < 0 || week > 100) {
+        notify_response(rid, false, ecp::CODE_BAD_REQUEST, "s and w must be 0..100");
+        return;
+    }
+
+    auto non_negative_u16 = [](JsonVariantConst value) -> uint16_t {
+        if (!value.is<int>()) return 0;
+        const int number = value.as<int>();
+        if (number <= 0) return 0;
+        return number > 65535 ? 65535 : (uint16_t)number;
+    };
+
+    usage_snapshot_t snapshot = {};
+    const char* provider = request["p"] | "claude";
+    snprintf(snapshot.provider, sizeof(snapshot.provider), "%s", provider ? provider : "claude");
+    snapshot.session_pct = (uint8_t)session;
+    snapshot.week_pct = (uint8_t)week;
+    snapshot.session_reset_min = non_negative_u16(request["sr"]);
+    snapshot.week_reset_min = non_negative_u16(request["wr"]);
+    snprintf(snapshot.limit_state, sizeof(snapshot.limit_state), "%s", request["st"] | "allowed");
+    snprintf(snapshot.acct, sizeof(snapshot.acct), "%s", request["acct"] | "");
+    snapshot.ok = request["ok"] | true;
+    snprintf(snapshot.cc_state, sizeof(snapshot.cc_state), "%s", request["cc"] | "");
+    snprintf(snapshot.cc_msg, sizeof(snapshot.cc_msg), "%s", request["ccm"] | "");
+    snapshot.rx_millis = millis();
+    usage_model_apply(&snapshot);
+    LOG_I("ECP", "usage.push p=%s s=%u sr=%u w=%u wr=%u st=%s cc=%s",
+          snapshot.provider, snapshot.session_pct, snapshot.session_reset_min,
+          snapshot.week_pct, snapshot.week_reset_min, snapshot.limit_state,
+          snapshot.cc_state);
+    notify_empty_ok(rid);
+#else
+    notify_response(rid, false, ecp::CODE_UNSUPPORTED, ecp::OP_USAGE_PUSH);
+#endif
+}
 
 struct CommandEntry {
     const char* op;
@@ -675,6 +724,7 @@ const CommandEntry COMMANDS[] = {
     {ecp::OP_CONFIG_WIFI_CLEAR, handle_config_wifi_clear},
     {ecp::OP_CONFIG_VOLUME_SET, handle_config_volume_set},
     {ecp::OP_CONFIG_BRIGHTNESS_SET, handle_config_brightness_set},
+    {ecp::OP_USAGE_PUSH, handle_usage_push},
 };
 
 

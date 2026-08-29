@@ -10,16 +10,18 @@
 #include "bsp_pins.h"
 #include "../../shell/shell.h"
 #include "../../../lib/nvs_settings/nvs_settings.h"
+#include "../usage/usage_model.h"
 
 namespace {
 enum settings_page_t { PAGE_LIST, PAGE_RESULTS, PAGE_DETAIL };
 settings_page_t s_page = PAGE_LIST;
 int s_selected = 0;
 int s_result_scroll = 0;
-constexpr int ITEM_COUNT = 6;
+constexpr int ITEM_COUNT = 7;
 const char* const ITEMS[ITEM_COUNT] = {
-    "HARDWARE TEST", "M0 STATIC FRAME", "M1 PARTIAL WALK", "BOOT DIAGNOSTIC", "WIFI STATUS", "ABOUT"
+    "HARDWARE TEST", "M0 STATIC FRAME", "M1 PARTIAL WALK", "BOOT DIAGNOSTIC", "WIFI STATUS", "ABOUT", "USAGE PUSH"
 };
+uint32_t s_usage_seq_seen = 0;
 
 void draw_line(int y, const char* text, bool selected)
 {
@@ -40,7 +42,7 @@ void render_list(void)
     for (int i = 0; i < ITEM_COUNT; i++) {
         char line[28];
         snprintf(line, sizeof(line), "%c %s", i == s_selected ? '>' : ' ', ITEMS[i]);
-        draw_line(45 + i * 25, line, false);
+        draw_line(42 + i * 21, line, false);
     }
     bsp_ui_fb_draw_text(5, 184, "ENTER run  ESC home", 1);
 }
@@ -98,6 +100,31 @@ void render_wifi(void)
     bsp_ui_fb_draw_text(5, 184, "ESC back", 1);
 }
 
+void render_usage(void)
+{
+    bsp_ui_fb_fill_rect(0, 26, BSP_EPD_W, BSP_EPD_H - 26, false);
+    bsp_ui_fb_draw_text(5, 30, "USAGE PUSH", 1);
+    if (usage_model_seq() == 0) {
+        bsp_ui_fb_draw_text(5, 52, "NO HOST", 1);
+    } else {
+        const int count = usage_model_count();
+        for (int i = 0; i < count && i < 3; i++) {
+            const usage_snapshot_t* snapshot = usage_model_at(i);
+            if (!snapshot) continue;
+            const uint32_t age = usage_model_age_ms(snapshot->provider);
+            char line[38];
+            char age_text[10];
+            if (age == UINT32_MAX) snprintf(age_text, sizeof(age_text), "never");
+            else if (age >= 3600000u) snprintf(age_text, sizeof(age_text), "%luh", (unsigned long)(age / 3600000u));
+            else snprintf(age_text, sizeof(age_text), "%lus", (unsigned long)(age / 1000u));
+            snprintf(line, sizeof(line), "%-7s %-5s %.15s %s", snapshot->provider, age_text,
+                     snapshot->limit_state, snapshot->ok ? "ok" : "bad");
+            bsp_ui_fb_draw_text(5, 52 + i * 20, line, 1);
+        }
+    }
+    bsp_ui_fb_draw_text(5, 184, "ESC back", 1);
+}
+
 void refresh_page(void)
 {
     if (s_page == PAGE_RESULTS) render_results();
@@ -134,6 +161,11 @@ void run_selected(void)
         s_page = PAGE_DETAIL;
         render_about();
         (void)bsp_ui_flush_partial();
+    } else if (s_selected == 6) {
+        s_page = PAGE_DETAIL;
+        s_usage_seq_seen = usage_model_seq();
+        render_usage();
+        (void)bsp_ui_flush_partial();
     }
 }
 
@@ -147,8 +179,8 @@ void handle_event(const shell_event_t& event)
     }
     if (event.kind == SHELL_EV_TAP) {
         if (s_page == PAGE_RESULTS) return;
-        if (event.y >= 40 && event.y < 40 + ITEM_COUNT * 25) {
-            s_selected = min(ITEM_COUNT - 1, max(0, (int)((event.y - 40) / 25)));
+        if (event.y >= 37 && event.y < 37 + ITEM_COUNT * 21) {
+            s_selected = min(ITEM_COUNT - 1, max(0, (int)((event.y - 37) / 21)));
             run_selected();
         }
         return;
@@ -162,7 +194,10 @@ void app_settings_on_enter(void)
     if (s_page == PAGE_RESULTS) render_results();
     else if (s_page == PAGE_DETAIL) {
         if (s_selected == 4) render_wifi();
-        else render_about();
+        else if (s_selected == 6) {
+            s_usage_seq_seen = usage_model_seq();
+            render_usage();
+        } else render_about();
     }
     else render_list();
     (void)bsp_ui_flush_partial();
@@ -172,7 +207,13 @@ void app_settings_on_exit(void) {}
 
 void app_settings_tick(void)
 {
-    handle_event(shell_wait_event(60000));
+    const app_entry_t* active = shell_active_app();
+    handle_event(shell_wait_event(30000));
+    if (shell_active_app() == active && s_page == PAGE_DETAIL && s_selected == 6 && usage_model_seq() != s_usage_seq_seen) {
+        s_usage_seq_seen = usage_model_seq();
+        render_usage();
+        (void)bsp_ui_flush_partial();
+    }
 }
 
 void app_settings_on_key(const char* key, const char* event)
