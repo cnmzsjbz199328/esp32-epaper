@@ -1,3 +1,27 @@
+# [0.11.0] - 2026-08-29
+
+Add the PHOTOS story library for multiple SD-backed FVID stories.
+
+### Changes
+
+- Extract the shared FVID v1 writer and add `--format fvid` / `--fvid-out` to
+  the solo and story-layout asset generators.
+- Add `tools/build_stories.py` and `assets/story_library.json` for reproducible
+  `solo`, `family-1`, and `family-2` seed story containers.
+- Replace the single-file SD frame source with bounded, sorted enumeration of
+  `/sdcard/video/*.fvid`, per-file header validation, and path-based opening.
+- Add PHOTOS library/player views with six-row paging, selection navigation,
+  SD-to-ROM fallback, and BACK/HOME behavior matching the application shell.
+
+### Validation
+
+- `python -m py_compile tools/_fvid.py tools/video2c.py tools/solo_story2c.py tools/story_layout2c.py` passed.
+- `python tools/build_stories.py` generated three valid seed containers:
+  `solo` 6 frames, `family-1` 6 frames, `family-2` 7 frames.
+- `pio run -e epaper_154` passed; RAM 22.4%, Flash 35.0%.
+- Hardware validation remains pending: SD directory enumeration, story selection,
+  player BACK/HOME, and busy-time/ghosting checks on the target board.
+
 # [0.10.0] - 2026-08-29
 
 Add the dual-provider usage app and low-frequency Windows host push path.

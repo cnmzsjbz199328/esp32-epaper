@@ -12,6 +12,8 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageOps
 
+from _fvid import emit_fvid, refresh_hints
+
 ROOT = Path(__file__).resolve().parent.parent
 SRC_DIR = ROOT / "assets" / "src"
 OUT_DIR = ROOT / "assets" / "generated"
@@ -167,12 +169,14 @@ def main():
     ap.add_argument("--max-w", type=int, default=165)
     ap.add_argument("--max-h", type=int, default=188)
     ap.add_argument("--bottom-margin", type=int, default=4)
+    ap.add_argument("--format", choices=["c", "fvid"], default="c")
+    ap.add_argument("--fvid-out", default=str(OUT_DIR / "solo.fvid"))
     args = ap.parse_args()
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     STORY_DIR.mkdir(parents=True, exist_ok=True)
 
-    rendered = []
+    solo_frames = []
     for idx, name in enumerate(CHARACTER_FILES):
         frame = make_solo_frame(
             SRC_DIR / name,
@@ -183,12 +187,15 @@ def main():
         )
         out = STORY_DIR / f"solo_stage_{idx:02d}.png"
         frame.save(out)
-        rendered.append(out)
+        solo_frames.append(out)
 
-    group_frames = sorted(GROUP_DIR.glob("video_stage_[0-9][0-9].png"))
-    if not group_frames:
-        raise FileNotFoundError(f"no staged group frames in {GROUP_DIR}")
-    rendered.extend(group_frames)
+    if args.format == "fvid":
+        rendered = solo_frames
+    else:
+        group_frames = sorted(GROUP_DIR.glob("video_stage_[0-9][0-9].png"))
+        if not group_frames:
+            raise FileNotFoundError(f"no staged group frames in {GROUP_DIR}")
+        rendered = solo_frames + group_frames
 
     frames = []
     inks = []
@@ -202,7 +209,11 @@ def main():
         inks.append(ink)
         print(f"{idx:02d} {path.name} ink {100 * ink.mean():.1f}%")
 
-    emit_assets(frames, args.size, args.size, OUT_DIR)
+    if args.format == "c":
+        emit_assets(frames, args.size, args.size, OUT_DIR)
+    else:
+        path = emit_fvid(frames, refresh_hints(inks), args.size, args.size, Path(args.fvid_out))
+        print(f"fvid: {path}")
     emit_preview(inks, OUT_DIR, args.scale)
     print(f"\nwrote {len(frames)} frames -> {OUT_DIR}")
     print(f"solo frames: {STORY_DIR}")

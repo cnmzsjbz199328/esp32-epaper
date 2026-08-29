@@ -10,6 +10,8 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageOps
 
+from _fvid import emit_fvid, refresh_hints
+
 ROOT = Path(__file__).resolve().parent.parent
 LAYOUT = ROOT / "assets" / "story_layout.json"
 OUT_DIR = ROOT / "assets" / "generated"
@@ -173,6 +175,8 @@ def main() -> None:
     parser.add_argument("--contrast", type=float, default=1.0)
     parser.add_argument("--despeckle", type=int, default=0)
     parser.add_argument("--scale", type=int, default=3)
+    parser.add_argument("--format", choices=["c", "fvid"], default="c")
+    parser.add_argument("--fvid-out", default=str(OUT_DIR / "family-2.fvid"))
     args = parser.parse_args()
 
     layout = json.loads(Path(args.layout).read_text(encoding="utf-8"))
@@ -185,7 +189,11 @@ def main() -> None:
     packed = [pack_native(ink) for ink in inks]
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    emit_assets(packed, width, height, OUT_DIR)
+    if args.format == "c":
+        emit_assets(packed, width, height, OUT_DIR)
+    else:
+        path = emit_fvid(packed, refresh_hints(inks), width, height, Path(args.fvid_out))
+        print(f"fvid: {path}")
     emit_previews(stage_frames, inks, FRAME_DIR, args.scale)
 
     for (stage, _), ink in zip(stage_frames, inks):

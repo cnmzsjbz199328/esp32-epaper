@@ -1,0 +1,28 @@
+{
+  "stories": [
+    {
+      "name": "solo",
+      "frames_dir": "generated/story_frames",
+      "glob": "solo_stage_*.png",
+      "threshold": 226,
+      "despeckle": 0,
+      "output": "solo.fvid"
+    },
+    {
+      "name": "family-1",
+      "frames_dir": "generated/video_frames",
+      "glob": "video_stage_[0-9][0-9].png",
+      "threshold": 190,
+      "despeckle": 1,
+      "output": "family-1.fvid"
+    },
+    {
+      "name": "family-2",
+      "frames_dir": "generated/story_composed",
+      "glob": "story_stage_[0-9][0-9]_appear_[0-9][0-9]_1x.png",
+      "threshold": 220,
+      "despeckle": 0,
+      "output": "family-2.fvid"
+    }
+  ]
+}

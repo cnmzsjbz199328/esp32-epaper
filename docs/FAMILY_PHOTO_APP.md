@@ -73,6 +73,25 @@ assets/generated/family_video_contactsheet.png
 `manifest` 记录输入视频、帧时间码、裁切框、阈值、墨点比例、相邻帧变化比例和每帧刷新建议。
 `contactsheet` 与 C 数组同源，人工预览看到的黑白结果就是固件将要推给屏幕的结果。
 
+## 故事库
+
+PHOTOS 进入后会优先扫描 TF 卡 `/sdcard/video/` 下的 ASCII 小写 `.fvid` 文件。
+每个文件是一条独立故事，列表显示去掉扩展名并转为大写的名称和帧数；文件按名字典序排列，
+最多保留 16 条有效故事。进入故事后按左右键或屏幕左右半区切换帧，长按跳到首帧或末帧。
+
+播放器中的 `BACK` 返回故事列表，`HOME` 或 BOOT 长按返回启动器。扫描不到有效故事时，
+应用直接播放编译进 ROM 的 `family_video_assets.c`；SD 播放中读帧失败也会记录日志并回落到 ROM。
+列表与播放器之间的切换都经过 shell 的完整刷新交接，列表内选择移动使用局部刷新。
+
+FVID v1 保持固定的 16 字节头和每帧 5004 字节记录，不嵌入标题。种子资产可用
+`tools/build_stories.py` 按 `assets/story_library.json` 生成：
+
+```text
+assets/generated/stories/solo.fvid
+assets/generated/stories/family-1.fvid
+assets/generated/stories/family-2.fvid
+```
+
 输入是一段视频和若干 `mm:ss:ff` 时间码。当前使用的 6 帧：
 
 ```text
