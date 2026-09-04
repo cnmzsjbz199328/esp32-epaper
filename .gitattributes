@@ -1,0 +1,6 @@
+# Normalize line endings to LF in the repository regardless of the
+# checkout platform. This project's history is LF; Windows editors/tools
+# can silently flip large numbers of tracked files to CRLF, which then
+# shows up as huge, meaningless diffs (every line touched) on the next
+# commit from this machine. This file stops that from recurring.
+* text=auto eol=lf
