@@ -389,6 +389,21 @@ esp_err_t es8311_init(es8311_handle_t dev, const es8311_clock_config_t *const cl
     /* Setup audio format (fmt): master/slave, resolution, I2S */
     ESP_RETURN_ON_ERROR(es8311_fmt_config(dev, res_in, res_out), TAG, "");
 
+    /* The four registers below (0x0B/0x0C/0x10/0x11) were never written by
+     * this driver -- they were silently left at chip power-on-reset default.
+     * Waveshare's own working reference for this board (audio_bsp.c /
+     * esp_codec_dev es8311.c, es8311_open()) writes them unconditionally on
+     * every bring-up. They are analog system/bias registers; leaving them at
+     * POR default is a plausible source of a constant background noise
+     * floor independent of anything played back. Matching the vendor values
+     * here so our sequence stops silently diverging from the one known to
+     * work on this exact board.
+     */
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_SYSTEM_REG0B, 0x00), TAG, "I2C read/write error");
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_SYSTEM_REG0C, 0x00), TAG, "I2C read/write error");
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_SYSTEM_REG10, 0x1F), TAG, "I2C read/write error");
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_SYSTEM_REG11, 0x7F), TAG, "I2C read/write error");
+
     ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_SYSTEM_REG0D, 0x01), TAG, "I2C read/write error"); // Power up analog circuitry - NOT default
     ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_SYSTEM_REG0E, 0x02), TAG, "I2C read/write error"); // Enable analog PGA, enable ADC modulator - NOT default
     ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_SYSTEM_REG12, 0x00), TAG, "I2C read/write error"); // power-up DAC - NOT default
@@ -396,6 +411,10 @@ esp_err_t es8311_init(es8311_handle_t dev, const es8311_clock_config_t *const cl
     ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_ADC_REG1B, 0x0A), TAG, "I2C read/write error"); // ADC high-pass/automute setup
     ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_ADC_REG1C, 0x6A), TAG, "I2C read/write error"); // ADC Equalizer bypass, cancel DC offset in digital domain
     ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_DAC_REG37, 0x08), TAG, "I2C read/write error"); // Bypass DAC equalizer - NOT default
+
+    /* Also present in the vendor sequence and otherwise never written here. */
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_ADC_REG15, 0x40), TAG, "I2C read/write error"); // ADC ramp rate / dmic sense
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_GP_REG45, 0x00), TAG, "I2C read/write error"); // GP control, cleared in vendor bring-up
 
     /* Select the internal ADCL + DACR reference used by the official board
      * configuration.  Keep this explicit for an easy A/B test against 0x08
