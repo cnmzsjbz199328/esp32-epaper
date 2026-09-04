@@ -13,7 +13,7 @@
 namespace {
 
 constexpr uint32_t AUDIO_SAMPLE_RATE = 16000;
-constexpr int AUDIO_VOLUME = 78;
+constexpr int AUDIO_VOLUME = 65;
 constexpr size_t AUDIO_BLOCK_SAMPLES = 256;
 constexpr size_t COMMAND_PATH_LEN = 128;
 constexpr size_t ADPCM_BLOCK_SAMPLES = 256;

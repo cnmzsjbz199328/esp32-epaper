@@ -18,6 +18,16 @@ static bool s_audio_ready = false;
 static bool s_mic_ready = false;
 static uint8_t s_chip_id[2] = {0, 0};
 
+static void codec_mute(bool mute)
+{
+    if (!s_es) return;
+    const esp_err_t err = es8311_voice_mute(s_es, mute);
+    if (err != ESP_OK) {
+        Serial.printf("[audio] codec mute(%d) failed: %s\n", mute ? 1 : 0,
+                      esp_err_to_name(err));
+    }
+}
+
 static bool read_chip_reg(uint8_t reg, uint8_t* out)
 {
     Wire.beginTransmission(BSP_ES8311_ADDR);
@@ -64,7 +74,8 @@ static bool codec_init(uint32_t sample_rate, int volume)
     }
     es8311_sample_frequency_config(s_es, sample_rate * MCLK_MULTIPLE, sample_rate);
     es8311_voice_volume_set(s_es, volume, nullptr);
-    es8311_voice_mute(s_es, false);
+    es8311_voice_fade(s_es, ES8311_FADE_512LRCK);
+    codec_mute(true);
     es8311_microphone_config(s_es, false);
     es8311_microphone_gain_set(s_es, ES8311_MIC_GAIN_30DB);
     return true;
@@ -81,7 +92,7 @@ static bool i2s_init(uint32_t sample_rate)
     cfg.intr_alloc_flags = ESP_INTR_FLAG_LEVEL1;
     cfg.dma_buf_count = 8;
     cfg.dma_buf_len = 256;
-    cfg.use_apll = false;
+    cfg.use_apll = true;
     cfg.tx_desc_auto_clear = true;
     cfg.fixed_mclk = sample_rate * MCLK_MULTIPLE;
     cfg.mclk_multiple = I2S_MCLK_MULTIPLE_256;
@@ -117,8 +128,13 @@ bool bsp_audio_init(uint32_t sample_rate, int volume)
     pinMode(BSP_PIN_PA_CTRL, OUTPUT);
     digitalWrite(BSP_PIN_PA_CTRL, LOW);
 
-    if (!codec_init(sample_rate, volume)) return false;
+    /* Start MCLK/I2S before opening the codec.  ES8311 register setup is more
+     * reliable when its expected master clock is already present. */
     if (!i2s_init(sample_rate)) return false;
+    if (!codec_init(sample_rate, volume)) {
+        i2s_driver_uninstall(I2S_PORT);
+        return false;
+    }
 
     s_rate = sample_rate;
     s_audio_ready = true;
@@ -148,7 +164,20 @@ void bsp_audio_set_volume(int volume)
 void bsp_audio_amp(bool on)
 {
     digitalWrite(BSP_PIN_PA_EN, LOW);
-    digitalWrite(BSP_PIN_PA_CTRL, on ? HIGH : LOW);
+    if (on) {
+        /* Keep the external PA off while clearing stale DMA data and
+         * unmuting the codec.  The codec-side ramp is configured in init. */
+        digitalWrite(BSP_PIN_PA_CTRL, LOW);
+        codec_mute(true);
+        i2s_zero_dma_buffer(I2S_PORT);
+        delay(2);
+        codec_mute(false);
+        digitalWrite(BSP_PIN_PA_CTRL, HIGH);
+    } else {
+        codec_mute(true);
+        digitalWrite(BSP_PIN_PA_CTRL, LOW);
+        i2s_zero_dma_buffer(I2S_PORT);
+    }
 }
 
 bool bsp_audio_ready(void)
@@ -176,7 +205,12 @@ size_t bsp_audio_write_mono(const int16_t* samples, size_t count)
             stereo[i * 2 + 1] = samples[done + i];
         }
         size_t written = 0;
-        i2s_write(I2S_PORT, stereo, n * 2 * sizeof(int16_t), &written, portMAX_DELAY);
+        const esp_err_t err = i2s_write(I2S_PORT, stereo, n * 2 * sizeof(int16_t),
+                                        &written, portMAX_DELAY);
+        if (err != ESP_OK) {
+            Serial.printf("[audio] i2s_write failed: %s\n", esp_err_to_name(err));
+            break;
+        }
         done += written / (2 * sizeof(int16_t));
         if (written == 0) break;
     }

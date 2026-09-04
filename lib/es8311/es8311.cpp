@@ -376,6 +376,13 @@ esp_err_t es8311_init(es8311_handle_t dev, const es8311_clock_config_t *const cl
     ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_RESET_REG00, 0x00), TAG, "I2C read/write error");
     ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_RESET_REG00, 0x80), TAG, "I2C read/write error"); // Power-on command
 
+    /* Match the Waveshare/ESP-IDF codec initialization sequence.  The first
+     * write is repeated because the first ES8311 I2C write can be lost
+     * immediately after reset on this board.
+     */
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_GPIO_REG44, 0x08), TAG, "I2C read/write error");
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_GPIO_REG44, 0x08), TAG, "I2C read/write error");
+
     /* Setup clock: source, polarity and clock dividers */
     ESP_RETURN_ON_ERROR(es8311_clock_config(dev, clk_cfg, res_out), TAG, "");
 
@@ -386,8 +393,15 @@ esp_err_t es8311_init(es8311_handle_t dev, const es8311_clock_config_t *const cl
     ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_SYSTEM_REG0E, 0x02), TAG, "I2C read/write error"); // Enable analog PGA, enable ADC modulator - NOT default
     ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_SYSTEM_REG12, 0x00), TAG, "I2C read/write error"); // power-up DAC - NOT default
     ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_SYSTEM_REG13, 0x10), TAG, "I2C read/write error"); // Enable output to HP drive - NOT default
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_ADC_REG1B, 0x0A), TAG, "I2C read/write error"); // ADC high-pass/automute setup
     ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_ADC_REG1C, 0x6A), TAG, "I2C read/write error"); // ADC Equalizer bypass, cancel DC offset in digital domain
     ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_DAC_REG37, 0x08), TAG, "I2C read/write error"); // Bypass DAC equalizer - NOT default
+
+    /* Select the internal ADCL + DACR reference used by the official board
+     * configuration.  Keep this explicit for an easy A/B test against 0x08
+     * if a particular board revision behaves differently.
+     */
+    ESP_RETURN_ON_ERROR(es8311_write_reg(dev, ES8311_GPIO_REG44, 0x58), TAG, "I2C read/write error");
 
     return ESP_OK;
 }
