@@ -109,6 +109,20 @@ assets/generated/stories/family-2.fvid
 python tools/video2c.py path\to\video.mp4 00:00:00 00:01:08 00:02:14 00:04:02 00:04:17 00:05:12
 ```
 
+### 图像故事与语音
+
+故事包在同一目录中保存画面、故事元数据和逐场景 WAV：
+
+```text
+/video/fox_forest.fvid
+/video/fox_forest/story.json
+/video/fox_forest/audio/000.wav ... 004.wav
+```
+
+固件按当前帧号解析对应音频；显示刷新成功后才开始/切换播放，离开故事或切换场景会取消上一段音频。
+播放器首版只接受单声道、16 kHz、16-bit PCM WAV。无 SD 卡时保留 ROM 视觉演示和完整的压缩场景音频，便于硬件验收。
+当前 `fox_forest` 使用 Google AI Studio Gemini 3.1 Flash TTS Preview（Achernar）生成的中文旁白；原始下载文件和迁移映射保存在故事包的 `source/audio_ai_studio/`。本地中文语音仍可用 `tools/generate_story_audio.ps1` 生成，再用 `tools/build_story_demo_assets.py` 生成验收固件里的 ROM 资源。
+
 生成：
 
 ```text

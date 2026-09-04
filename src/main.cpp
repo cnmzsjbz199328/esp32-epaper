@@ -4,6 +4,7 @@
 #include "bsp.h"
 #include "ecosystem_ble.h"
 #include "nvs_settings.h"
+#include "shell/app_registry.h"
 #include "shell/shell.h"
 #include "touch.h"
 
@@ -59,6 +60,10 @@ void setup()
 #if APP_MODE == APP_MODE_SHELL
     shell_ble_begin_with_retry();
     shell_begin();
+#if defined(APP_AUTOSTART_PHOTOS)
+    const app_entry_t* apps = app_registry_entries();
+    if (app_registry_count() > 0) shell_open_app(&apps[0]);
+#endif
 #elif APP_MODE == APP_MODE_M0
     app_run_m0_diagnostics();
 #elif APP_MODE == APP_MODE_M1

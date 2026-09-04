@@ -1,0 +1,12 @@
+{
+  "stories": [
+    {
+      "name": "fox_forest",
+      "frames_dir": "source/scenes",
+      "glob": "[0-9][0-9][0-9].png",
+      "threshold": 170,
+      "despeckle": 1,
+      "output": "fox_forest.fvid"
+    }
+  ]
+}

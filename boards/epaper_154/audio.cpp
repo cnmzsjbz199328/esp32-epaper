@@ -281,4 +281,3 @@ uint16_t bsp_mic_peak_level(void)
     }
     return (uint16_t)(peak > 32767 ? 32767 : peak);
 }
-

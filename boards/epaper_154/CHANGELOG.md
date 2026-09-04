@@ -1,3 +1,31 @@
+# [0.11.1] - 2026-09-04
+
+Add scene-synchronised audio to the PHOTOS story player.
+
+### Changes
+
+- Stream a matching `/audio/%03d.wav` from each SD-backed FVID scene after a
+  successful display refresh, with cancellation on navigation and pause/resume
+  controls.
+- Add the `fox_forest` five-scene image/audio story pack, reproducible local
+  Chinese WAV generation, and a ROM acceptance build containing compressed full
+  audio for every scene.
+- Keep the no-SD ROM visual/audio fallback so the complete interaction can be
+  tested without a card.
+
+### Validation
+
+- All five story WAV files validated as mono 16 kHz, 16-bit PCM; FVID contains
+  five 200x200 frames and the generated preview was inspected.
+- `pio run -e epaper_154_app` passed at 35.1% flash; the ROM story demo passed
+  at 61.8% flash.
+- ROM story demo flashed to ESP32-S3-PICO-1 on COM9 with hash verification.
+- Serial log confirmed five-frame ROM playback, ES8311 initialization, scene 0
+  audio completion, and BLE `right` navigation to scene 1 with its audio task
+  completing; no panic or reset followed.
+- Physical SD enumeration remains pending because no card was present during
+  this run; the packaged SD layout is documented in the story README.
+
 # [0.11.0] - 2026-08-29
 
 Add the PHOTOS story library for multiple SD-backed FVID stories.

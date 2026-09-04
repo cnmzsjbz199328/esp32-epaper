@@ -59,6 +59,11 @@ def build_story(spec: dict, manifest_path: Path, out_dir: Path) -> Path:
 
     output = out_dir / spec["output"]
     emit_fvid(frames, refresh_hints(inks), size, size, output)
+    thumbs = [Image.fromarray(np.where(ink, 0, 255).astype(np.uint8)) for ink in inks]
+    preview = Image.new("L", (size * len(thumbs), size), 255)
+    for index, thumb in enumerate(thumbs):
+        preview.paste(thumb, (index * size, 0))
+    preview.save(out_dir / f"{spec['name']}_preview.png")
     print(f"{spec['name']}: {len(frames)} frames -> {output}")
     return output
 

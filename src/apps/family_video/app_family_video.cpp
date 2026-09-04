@@ -4,6 +4,10 @@
 #include <string.h>
 
 #include "frame_source.h"
+#include "story_audio.h"
+#if defined(APP_STORY_DEMO_ROM)
+#include "story_demo_audio.h"
+#endif
 #include "family_video_assets.h"
 #include "bsp.h"
 #include "bsp_pins.h"
@@ -77,8 +81,34 @@ void render_library()
     bsp_ui_fb_draw_text(5, LIBRARY_FOOTER_Y, "ENTER play  UP/DN move", 1);
 }
 
+void sync_scene_audio(bool display_ok)
+{
+    if (!display_ok) {
+        story_audio_stop();
+        return;
+    }
+    if (s_from_library && s_source == frame_source_sd()) {
+        story_audio_play_scene(s_stories[s_selected].path, s_frame);
+        return;
+    }
+#if defined(APP_STORY_DEMO_ROM)
+    if (s_source == frame_source_rom() && s_frame >= 0 &&
+        s_frame < STORY_DEMO_AUDIO_SCENE_COUNT) {
+        Serial.printf("[video] ROM scene=%d audio samples=%u\n", s_frame,
+                      (unsigned)STORY_DEMO_AUDIO_SAMPLE_COUNTS[s_frame]);
+        story_audio_play_rom_adpcm(STORY_DEMO_AUDIO_DATA[s_frame],
+                                   STORY_DEMO_AUDIO_DATA_LENGTHS[s_frame],
+                                   STORY_DEMO_AUDIO_SAMPLE_COUNTS[s_frame],
+                                   STORY_DEMO_AUDIO_SAMPLE_RATE);
+        return;
+    }
+#endif
+    story_audio_stop();
+}
+
 bool show_library(bool full_refresh)
 {
+    story_audio_stop();
     if (s_story_count <= 0) {
         Serial.println("[video] library empty: NO STORIES ON SD");
         return false;
@@ -132,6 +162,7 @@ bool show_frame(int target, bool force_full)
     if (needs_new_base || force_full) {
         const bool ok = shell_full_refresh_current();
         if (ok) s_streak = 0;
+        sync_scene_audio(ok);
         Serial.printf("[video] frame=%d/%d source=%s mode=full hint=%d busy=%lums %s\n",
                       s_frame + 1, count, s_source->name, hint,
                       (unsigned long)bsp_epd_last_busy_ms(), ok ? "ok" : "FAIL");
@@ -140,6 +171,7 @@ bool show_frame(int target, bool force_full)
 
     const bool ok = bsp_ui_flush_partial();
     if (ok) s_streak++;
+    sync_scene_audio(ok);
     Serial.printf("[video] frame=%d/%d source=%s mode=partial streak=%d busy=%lums %s\n",
                   s_frame + 1, count, s_source->name, s_streak,
                   (unsigned long)bsp_epd_last_busy_ms(), ok ? "ok" : "FAIL");
@@ -215,7 +247,11 @@ void handle_event(const shell_event_t& event)
 
     if (!s_source) return;
     const bool left = event.x < BSP_EPD_W / 2;
-    if (event.long_press) show_frame(left ? 0 : s_source->count() - 1, false);
+    if (event.long_press && event.x >= BSP_EPD_W / 4 && event.x < BSP_EPD_W * 3 / 4) {
+        story_audio_toggle_pause();
+    } else if (event.long_press) {
+        show_frame(left ? 0 : s_source->count() - 1, false);
+    }
     else show_frame(s_frame + (left ? -1 : 1), false);
 }
 
@@ -243,7 +279,10 @@ void app_family_video_on_enter(void)
     if (!show_frame(0, true)) Serial.println("[video] initial frame FAIL");
 }
 
-void app_family_video_on_exit(void) {}
+void app_family_video_on_exit(void)
+{
+    story_audio_stop();
+}
 
 void app_family_video_tick(void)
 {
@@ -268,6 +307,8 @@ void app_family_video_on_key(const char* key, const char* event)
     if (strcmp(key, "right") == 0) show_frame(s_frame + 1, false);
     else if (strcmp(key, "left") == 0) show_frame(s_frame - 1, false);
     else if (strcmp(key, "home") == 0) shell_show_launcher();
+    else if (strcmp(key, "space") == 0 || strcmp(key, "play") == 0 ||
+             strcmp(key, "pause") == 0) story_audio_toggle_pause();
     else if ((strcmp(key, "back") == 0 || strcmp(key, "esc") == 0) &&
              s_from_library && s_story_count > 0) show_library(true);
     else if (strcmp(key, "back") == 0 || strcmp(key, "esc") == 0) shell_show_launcher();
