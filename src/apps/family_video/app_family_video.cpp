@@ -5,9 +5,7 @@
 
 #include "frame_source.h"
 #include "story_audio.h"
-#if defined(APP_STORY_DEMO_ROM)
 #include "story_demo_audio.h"
-#endif
 #include "family_video_assets.h"
 #include "bsp.h"
 #include "bsp_pins.h"
@@ -21,12 +19,14 @@ namespace {
 
 enum view_t { VIEW_LIBRARY, VIEW_PLAYER };
 constexpr int LIBRARY_VISIBLE = 6;
+constexpr int BUILTIN_STORY_COUNT = 2;
+constexpr int STORY_LIBRARY_MAX = SD_STORY_MAX + BUILTIN_STORY_COUNT;
 constexpr int LIBRARY_ROW_Y = 34;
 constexpr int LIBRARY_ROW_H = 24;
 constexpr int LIBRARY_FOOTER_Y = 184;
 
 view_t s_view = VIEW_PLAYER;
-fvid_entry_t s_stories[SD_STORY_MAX] = {};
+fvid_entry_t s_stories[STORY_LIBRARY_MAX] = {};
 int s_story_count = 0;
 int s_selected = 0;
 int s_frame = 0;
@@ -91,8 +91,7 @@ void sync_scene_audio(bool display_ok)
         story_audio_play_scene(s_stories[s_selected].path, s_frame);
         return;
     }
-#if defined(APP_STORY_DEMO_ROM)
-    if (s_source == frame_source_rom() && s_frame >= 0 &&
+    if (s_source == frame_source_story_rom() && s_frame >= 0 &&
         s_frame < STORY_DEMO_AUDIO_SCENE_COUNT) {
         Serial.printf("[video] ROM scene=%d audio samples=%u\n", s_frame,
                       (unsigned)STORY_DEMO_AUDIO_SAMPLE_COUNTS[s_frame]);
@@ -102,7 +101,6 @@ void sync_scene_audio(bool display_ok)
                                    STORY_DEMO_AUDIO_SAMPLE_RATE);
         return;
     }
-#endif
     story_audio_stop();
 }
 
@@ -110,7 +108,7 @@ bool show_library(bool full_refresh)
 {
     story_audio_stop();
     if (s_story_count <= 0) {
-        Serial.println("[video] library empty: NO STORIES ON SD");
+        Serial.println("[video] library empty: NO STORIES AVAILABLE");
         return false;
     }
     s_view = VIEW_LIBRARY;
@@ -132,7 +130,7 @@ bool show_frame(int target, bool force_full)
     uint8_t* fb = bsp_ui_fb();
     if (!s_source->load(target, fb, bsp_ui_fb_len())) {
         Serial.printf("[video] %s load frame %d failed\n", s_source->name, target);
-        if (s_source != frame_source_rom()) {
+        if (s_source == frame_source_sd()) {
             frame_source_use_rom();
             s_source = frame_source_current();
             count = s_source->count();
@@ -183,6 +181,19 @@ void select_story(int index)
     if (index < 0) index = 0;
     if (index >= s_story_count) index = s_story_count - 1;
     s_selected = index;
+
+    if (s_stories[index].kind == FVID_ENTRY_ROM_PHOTOS ||
+        s_stories[index].kind == FVID_ENTRY_ROM_STORY) {
+        s_source = s_stories[index].kind == FVID_ENTRY_ROM_STORY
+            ? frame_source_story_rom() : frame_source_rom();
+        s_frame = 0;
+        s_streak = 0;
+        s_from_library = true;
+        s_view = VIEW_PLAYER;
+        if (!show_frame(0, true)) Serial.println("[video] built-in story initial frame FAIL");
+        return;
+    }
+
     if (!frame_source_sd_open(s_stories[index].path)) {
         Serial.printf("[video] story open failed: %s\n", s_stories[index].path);
         show_library(false);
@@ -194,6 +205,16 @@ void select_story(int index)
     s_from_library = true;
     s_view = VIEW_PLAYER;
     if (!show_frame(0, true)) Serial.println("[video] story initial frame FAIL");
+}
+
+void add_builtin_story(const char* name, uint16_t frames, fvid_entry_kind_t kind)
+{
+    if (s_story_count >= STORY_LIBRARY_MAX || !name) return;
+    fvid_entry_t& entry = s_stories[s_story_count++];
+    memset(&entry, 0, sizeof(entry));
+    snprintf(entry.name, sizeof(entry.name), "%s", name);
+    entry.frames = frames;
+    entry.kind = kind;
 }
 
 void move_selection(int delta)
@@ -259,7 +280,11 @@ void handle_event(const shell_event_t& event)
 
 void app_family_video_on_enter(void)
 {
-    s_story_count = frame_source_sd_scan(s_stories, SD_STORY_MAX);
+    s_story_count = 0;
+    add_builtin_story("PHOTOS", (uint16_t)frame_source_rom()->count(), FVID_ENTRY_ROM_PHOTOS);
+    add_builtin_story("FOX_FOREST", (uint16_t)frame_source_story_rom()->count(), FVID_ENTRY_ROM_STORY);
+    s_story_count += frame_source_sd_scan(s_stories + s_story_count,
+                                          STORY_LIBRARY_MAX - s_story_count);
     s_selected = 0;
     s_frame = 0;
     s_streak = 0;

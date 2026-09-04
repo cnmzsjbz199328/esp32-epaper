@@ -115,6 +115,7 @@ void fill_entry(fvid_entry_t* entry, const char* path, uint16_t frames)
     for (char* p = name; *p; p++) *p = (char)toupper((unsigned char)*p);
     snprintf(entry->name, sizeof(entry->name), "%s", name);
     entry->frames = frames;
+    entry->kind = FVID_ENTRY_SD;
 }
 
 }
