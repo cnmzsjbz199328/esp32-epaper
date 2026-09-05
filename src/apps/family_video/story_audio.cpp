@@ -9,11 +9,11 @@
 
 #include "audio.h"
 #include "sdcard.h"
+#include "../../../lib/nvs_settings/nvs_settings.h"
 
 namespace {
 
 constexpr uint32_t AUDIO_SAMPLE_RATE = 16000;
-constexpr int AUDIO_VOLUME = 65;
 constexpr size_t AUDIO_BLOCK_SAMPLES = 256;
 constexpr size_t COMMAND_PATH_LEN = 128;
 constexpr size_t ADPCM_BLOCK_SAMPLES = 256;
@@ -390,10 +390,16 @@ void request_command(audio_source_t source, const char* path,
 void story_audio_init(void)
 {
     if (s_task) return;
-    if (!bsp_audio_init(AUDIO_SAMPLE_RATE, AUDIO_VOLUME)) {
+    const uint8_t volume = ecp::settings::get_volume(80);
+    if (!bsp_audio_init(AUDIO_SAMPLE_RATE, volume)) {
         Serial.println("[story-audio] audio init failed; story playback remains visual-only");
         return;
     }
+    /* bsp_audio_init() only applies `volume` on the very first call (the
+     * codec singleton may already be up from an earlier Settings-page
+     * volume preview); re-apply explicitly so the persisted value always
+     * wins regardless of init order. */
+    bsp_audio_set_volume(volume);
     const BaseType_t result = xTaskCreatePinnedToCore(
         story_audio_task, "story_audio", 4096, nullptr, 2, &s_task, 1);
     if (result != pdPASS) {
