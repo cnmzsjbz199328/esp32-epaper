@@ -23,16 +23,8 @@ Regenerate the visual pack with:
 python tools/build_stories.py --manifest assets/stories/fox_forest/build.json --out-dir assets/stories/fox_forest
 ```
 
-Regenerate the local Chinese voice fallback with:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File tools/generate_story_audio.ps1
-```
-
 The playable WAV files are generated with Google AI Studio's Gemini 3.1 Flash
 TTS Preview using the Achernar voice, then normalized to mono 16 kHz, 16-bit
 PCM WAV for the board audio path. The original 24 kHz downloads are kept under
-`source/audio_ai_studio/`; the previous local Huihui files are kept under
-`source/audio_previous_huihui/`. The ROM demo embeds all scene audio in
-compressed form so every scene remains complete and audible even without an SD
-card.
+`source/audio_ai_studio/`. The ROM demo embeds all scene audio in compressed
+form so every scene remains complete and audible even without an SD card.
