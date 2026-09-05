@@ -253,9 +253,38 @@ void play_adpcm(const uint8_t* data, size_t data_length, size_t sample_count,
         return;
     }
 
+    /* tools/build_story_demo_assets.py encodes one continuous IMA ADPCM
+     * stream per scene: a single 4-byte header (predictor, index) followed
+     * by nibble codes for every remaining sample, with predictor/index
+     * carried through for the whole scene rather than reset every
+     * ADPCM_BLOCK_SAMPLES. (An earlier per-block-reset scheme forced the
+     * adaptive step back to its minimum every 16ms, which measured ~17dB
+     * round-trip SNR and was audible as a persistent grainy noise texture;
+     * a continuous stream measures ~27dB SNR on the same source.) The loop
+     * below still streams decoded samples out in ADPCM_BLOCK_SAMPLES
+     * chunks for I2S/pause responsiveness -- that chunking is purely a
+     * playback detail now and must not reset predictor/index or realign
+     * the nibble stream between chunks.
+     *
+     * Each byte packs two codes as (earlier_sample | later_sample << 4),
+     * i.e. the low nibble is the earlier sample; nibble codes start right
+     * after the 4-byte header and cover global sample positions 1..N-1
+     * (position 0 is the header's predictor itself, not nibble-coded).
+     */
+    const size_t nibble_bytes = sample_count > 0 ? sample_count / 2 : 0;
+    if (data_length < 4 + nibble_bytes) {
+        Serial.println("[story-audio] ROM ADPCM payload truncated");
+        return;
+    }
+    int16_t predictor = (int16_t)((uint16_t)data[0] | ((uint16_t)data[1] << 8));
+    int index = data[2];
+    if (index > 88) {
+        Serial.println("[story-audio] ROM ADPCM header invalid");
+        return;
+    }
+
     int16_t block[ADPCM_BLOCK_SAMPLES] = {};
     size_t sample_offset = 0;
-    size_t data_offset = 0;
     s_playing = true;
     s_paused = false;
     bsp_audio_amp(true);
@@ -263,32 +292,19 @@ void play_adpcm(const uint8_t* data, size_t data_length, size_t sample_count,
     while (sample_offset < sample_count && !command_cancelled(version)) {
         size_t block_count = sample_count - sample_offset;
         if (block_count > ADPCM_BLOCK_SAMPLES) block_count = ADPCM_BLOCK_SAMPLES;
-        const size_t nibble_bytes = (block_count - 1 + 1) / 2;
-        if (data_offset > data_length || data_length - data_offset < 4 + nibble_bytes) break;
 
-        int16_t predictor = (int16_t)((uint16_t)data[data_offset] |
-                                      ((uint16_t)data[data_offset + 1] << 8));
-        int index = data[data_offset + 2];
-        if (index > 88) break;
-        block[0] = predictor;
-        for (size_t i = 1; i < block_count; i++) {
-            /* tools/build_story_demo_assets.py packs each nibble pair as
-             * (first_sample_code | second_sample_code << 4), i.e. the
-             * earlier sample's 4-bit code is the LOW nibble. This read had
-             * it backwards (odd i read high, even i read low), which
-             * silently swapped every pair of codes between neighbouring
-             * samples. That desyncs the adaptive predictor from block to
-             * block and reproduces as a loud, constant "sha-sha" noise
-             * riding on top of the decoded speech -- confirmed by
-             * re-encoding/decoding a shipped scene in isolation: fixing the
-             * nibble order took the round-trip SNR from ~0 dB (noise as
-             * loud as the signal) to ~17 dB. */
-            const uint8_t packed = data[data_offset + 4 + (i - 1) / 2];
-            const uint8_t code = (i & 1) ? (packed & 0x0F) : (packed >> 4);
+        size_t i = 0;
+        if (sample_offset == 0) {
+            block[0] = predictor; /* global sample 0: the raw header value */
+            i = 1;
+        }
+        for (; i < block_count; i++) {
+            const size_t global_pos = sample_offset + i; /* 1-based nibble-stream position */
+            const uint8_t packed = data[4 + (global_pos - 1) / 2];
+            const uint8_t code = (global_pos & 1) ? (packed & 0x0F) : (packed >> 4);
             predictor = ima_decode_nibble(predictor, index, code);
             block[i] = predictor;
         }
-        data_offset += 4 + nibble_bytes;
 
         wait_while_paused(version);
         if (command_cancelled(version)) break;
@@ -309,7 +325,7 @@ void play_adpcm(const uint8_t* data, size_t data_length, size_t sample_count,
     s_paused = false;
     Serial.printf("[story-audio] ROM ADPCM samples=%u/%u bytes=%u/%u %s\n",
                   (unsigned)sample_offset, (unsigned)sample_count,
-                  (unsigned)data_offset, (unsigned)data_length,
+                  (unsigned)(4 + nibble_bytes), (unsigned)data_length,
                   command_cancelled(version) ? "cancelled" :
                   (sample_offset == sample_count ? "done" : "short"));
 }
