@@ -123,8 +123,14 @@ bool bsp_audio_init(uint32_t sample_rate, int volume)
 {
     if (s_audio_ready) return true;
 
-    pinMode(BSP_PIN_PA_EN, OUTPUT);
-    digitalWrite(BSP_PIN_PA_EN, LOW);
+    /* BSP_PIN_PA_EN (IO42) is set up once in bsp_board_init() and never
+     * touched again here. Waveshare's own board profile for this exact
+     * board (codec_board/board_cfg.h, "S3_ePaper_1_54") only lists IO46 as
+     * the ES8311 driver's PA pin -- IO42 isn't part of the audio driver at
+     * all in their reference, it's a one-time board power-domain pin
+     * (see bsp_board_init()'s comment). Re-driving it here on every
+     * init/amp-toggle was redundant (always LOW -> LOW, no functional
+     * effect) and has been removed. */
     pinMode(BSP_PIN_PA_CTRL, OUTPUT);
     digitalWrite(BSP_PIN_PA_CTRL, LOW);
 
@@ -163,7 +169,6 @@ void bsp_audio_set_volume(int volume)
 
 void bsp_audio_amp(bool on)
 {
-    digitalWrite(BSP_PIN_PA_EN, LOW);
     if (on) {
         /* Keep the external PA off while clearing stale DMA data and
          * unmuting the codec.  The codec-side ramp is configured in init. */
