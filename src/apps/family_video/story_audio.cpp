@@ -272,8 +272,19 @@ void play_adpcm(const uint8_t* data, size_t data_length, size_t sample_count,
         if (index > 88) break;
         block[0] = predictor;
         for (size_t i = 1; i < block_count; i++) {
+            /* tools/build_story_demo_assets.py packs each nibble pair as
+             * (first_sample_code | second_sample_code << 4), i.e. the
+             * earlier sample's 4-bit code is the LOW nibble. This read had
+             * it backwards (odd i read high, even i read low), which
+             * silently swapped every pair of codes between neighbouring
+             * samples. That desyncs the adaptive predictor from block to
+             * block and reproduces as a loud, constant "sha-sha" noise
+             * riding on top of the decoded speech -- confirmed by
+             * re-encoding/decoding a shipped scene in isolation: fixing the
+             * nibble order took the round-trip SNR from ~0 dB (noise as
+             * loud as the signal) to ~17 dB. */
             const uint8_t packed = data[data_offset + 4 + (i - 1) / 2];
-            const uint8_t code = (i & 1) ? (packed >> 4) : (packed & 0x0F);
+            const uint8_t code = (i & 1) ? (packed & 0x0F) : (packed >> 4);
             predictor = ima_decode_nibble(predictor, index, code);
             block[i] = predictor;
         }
