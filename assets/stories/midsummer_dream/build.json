@@ -1,0 +1,3 @@
+{
+  "stories": [{"name": "midsummer_dream", "frames_dir": "source/scenes", "glob": "[0-9][0-9][0-9].png", "threshold": 175, "despeckle": 1, "output": "midsummer_dream.fvid"}]
+}
