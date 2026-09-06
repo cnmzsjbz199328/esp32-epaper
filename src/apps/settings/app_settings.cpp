@@ -12,6 +12,8 @@
 #include "../../shell/shell.h"
 #include "../../../lib/nvs_settings/nvs_settings.h"
 #include "../usage/usage_model.h"
+#include "../file_sync/file_sync_server.h"
+#include "file_storage.h"
 
 namespace {
 enum settings_page_t { PAGE_LIST, PAGE_RESULTS, PAGE_DETAIL, PAGE_VOLUME };
@@ -20,7 +22,7 @@ int s_selected = 0;
 int s_result_scroll = 0;
 constexpr int ITEM_COUNT = 8;
 const char* const ITEMS[ITEM_COUNT] = {
-    "HARDWARE TEST", "M0 STATIC FRAME", "M1 PARTIAL WALK", "BOOT DIAGNOSTIC", "WIFI STATUS", "ABOUT", "USAGE PUSH", "VOLUME"
+    "HARDWARE TEST", "M0 STATIC FRAME", "M1 PARTIAL WALK", "BOOT DIAGNOSTIC", "WIFI + SYNC", "ABOUT", "USAGE PUSH", "VOLUME"
 };
 uint32_t s_usage_seq_seen = 0;
 constexpr uint8_t VOLUME_STEP = 5;
@@ -95,12 +97,30 @@ void render_wifi(void)
 {
     ecp::settings::WifiCredentials creds;
     const bool configured = ecp::settings::get_wifi_credentials(creds);
+    file_sync_server_state_t server_state = {};
+    file_sync_server_get_state(&server_state);
+    const file_storage::SpaceInfo storage = file_storage::space();
     bsp_ui_fb_fill_rect(0, 26, BSP_EPD_W, BSP_EPD_H - 26, false);
-    bsp_ui_fb_draw_text(5, 30, "WIFI STATUS", 1);
-    bsp_ui_fb_draw_text(5, 52, configured ? "CONFIGURED" : "NOT CONFIGURED", 1);
-    if (configured) bsp_ui_fb_draw_text(5, 70, creds.ssid.c_str(), 1);
-    bsp_ui_fb_draw_text(5, 92, "SET VIA BLE config.wifi", 1);
-    bsp_ui_fb_draw_text(5, 184, "ESC back", 1);
+    bsp_ui_fb_draw_text(5, 29, "WIFI + SYNC", 1);
+    char line[38] = {};
+    snprintf(line, sizeof(line), "WIFI %s %s", configured ? "CFG" : "--", server_state.ip);
+    bsp_ui_fb_draw_text(5, 45, line, 1);
+    snprintf(line, sizeof(line), "NAME %.22s", ecp::settings::get_device_name("EPAPER-154").c_str());
+    bsp_ui_fb_draw_text(5, 59, line, 1);
+    const String token = ecp::settings::get_sync_token();
+    snprintf(line, sizeof(line), "TOKEN %.16s", token.c_str());
+    bsp_ui_fb_draw_text(5, 73, line, 1);
+    snprintf(line, sizeof(line), "      %.16s", token.length() > 16 ? token.c_str() + 16 : "");
+    bsp_ui_fb_draw_text(5, 87, line, 1);
+    snprintf(line, sizeof(line), "AUTO SYNC %s", ecp::settings::get_auto_sync(false) ? "ON" : "OFF");
+    bsp_ui_fb_draw_text(5, 103, line, 1);
+    snprintf(line, sizeof(line), "DELETE    %s", ecp::settings::get_allow_delete(false) ? "ON" : "OFF");
+    bsp_ui_fb_draw_text(5, 117, line, 1);
+    snprintf(line, sizeof(line), "STORY SCAN %s", ecp::settings::get_auto_story_scan(true) ? "ON" : "OFF");
+    bsp_ui_fb_draw_text(5, 131, line, 1);
+    snprintf(line, sizeof(line), "SD %luMB free", (unsigned long)(storage.free_bytes / 1048576ULL));
+    bsp_ui_fb_draw_text(5, 147, line, 1);
+    bsp_ui_fb_draw_text(5, 184, "ENTER auto  D del  S scan", 1);
 }
 
 void render_usage(void)
@@ -250,7 +270,19 @@ void app_settings_on_key(const char* key, const char* event)
         return;
     }
     if (s_page == PAGE_DETAIL) {
-        if (strcmp(key, "back") == 0 || strcmp(key, "esc") == 0) { s_page = PAGE_LIST; refresh_page(); }
+        if (s_selected == 4 && strcmp(key, "enter") == 0) {
+            ecp::settings::set_auto_sync(!ecp::settings::get_auto_sync(false));
+            render_wifi();
+            (void)bsp_ui_flush_partial();
+        } else if (s_selected == 4 && strcmp(key, "d") == 0) {
+            ecp::settings::set_allow_delete(!ecp::settings::get_allow_delete(false));
+            render_wifi();
+            (void)bsp_ui_flush_partial();
+        } else if (s_selected == 4 && strcmp(key, "s") == 0) {
+            ecp::settings::set_auto_story_scan(!ecp::settings::get_auto_story_scan(true));
+            render_wifi();
+            (void)bsp_ui_flush_partial();
+        } else if (strcmp(key, "back") == 0 || strcmp(key, "esc") == 0) { s_page = PAGE_LIST; refresh_page(); }
         return;
     }
     if (s_page == PAGE_VOLUME) {

@@ -8,6 +8,7 @@
 #include "bsp.h"
 #include "bsp_pins.h"
 #include "family_video_assets.h"
+#include "file_storage.h"
 #include "sdcard.h"
 
 namespace {
@@ -197,6 +198,7 @@ int frame_source_sd_scan(fvid_entry_t* out, int max)
 bool frame_source_sd_open(const char* path)
 {
     if (!path || !bsp_sd_init()) return false;
+    file_storage::playback_end();
     if (s_file) s_file.close();
     s_count = 0;
     s_valid = false;
@@ -207,6 +209,13 @@ bool frame_source_sd_open(const char* path)
     if (!s_file || !valid_header(s_file, &count)) {
         Serial.printf("[video] SD open invalid %s\n", path);
         if (s_file) s_file.close();
+        return false;
+    }
+    const file_storage::Status playback_status = file_storage::playback_begin(path);
+    if (playback_status != file_storage::Status::Ok) {
+        Serial.printf("[video] SD playback lock failed: %s\n",
+                      file_storage::status_name(playback_status));
+        s_file.close();
         return false;
     }
     s_count = count;
@@ -230,6 +239,7 @@ const char* frame_source_name(void) { return frame_source_current()->name; }
 
 void frame_source_use_rom(void)
 {
+    file_storage::playback_end();
     if (s_file) s_file.close();
     s_count = 0;
     s_valid = false;

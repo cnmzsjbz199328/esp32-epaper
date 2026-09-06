@@ -4,6 +4,8 @@
 #include <string.h>
 
 #include "frame_source.h"
+#include "file_storage.h"
+#include "../file_sync/file_sync_server.h"
 #include "story_audio.h"
 #include "story_catalog.h"
 #include "family_video_assets.h" /* refresh-hint constants and photo source ABI */
@@ -37,6 +39,7 @@ bool s_opening_active = false;
 bool s_opening_seen_playing = false;
 uint32_t s_opening_started_ms = 0;
 bool s_closing_shown = false;
+uint32_t s_sync_generation_seen = 0;
 
 int library_page_count()
 {
@@ -119,6 +122,20 @@ bool show_library(bool full_refresh)
     const bool ok = full_refresh ? shell_full_refresh_current() : bsp_ui_flush_partial();
     if (!ok) Serial.println("[video] library refresh FAIL");
     return ok;
+}
+
+void reload_story_library_if_changed()
+{
+    const uint32_t generation = file_sync_server_commit_generation();
+    if (generation == s_sync_generation_seen) return;
+    s_story_count = story_catalog_append_builtins(s_stories, STORY_LIBRARY_MAX);
+    s_story_count += frame_source_sd_scan(s_stories + s_story_count,
+                                          STORY_LIBRARY_MAX - s_story_count);
+    s_selected = min(s_selected, max(0, s_story_count - 1));
+    s_frame = 0;
+    s_source = nullptr;
+    s_sync_generation_seen = generation;
+    Serial.printf("[video] library reloaded after file-sync commit stories=%d\n", s_story_count);
 }
 
 bool show_frame(int target, bool force_full)
@@ -370,6 +387,7 @@ void app_family_video_on_enter(void)
     s_opening_active = false;
     s_opening_seen_playing = false;
     s_closing_shown = false;
+    s_sync_generation_seen = file_sync_server_commit_generation();
     if (s_story_count > 0) {
         s_from_library = true;
         s_source = nullptr;
@@ -397,10 +415,15 @@ void app_family_video_on_exit(void)
     s_opening_seen_playing = false;
     s_closing_shown = false;
     story_audio_stop();
+    file_storage::playback_end();
 }
 
 void app_family_video_tick(void)
 {
+    if (s_view == VIEW_LIBRARY && file_sync_server_commit_generation() != s_sync_generation_seen) {
+        reload_story_library_if_changed();
+        show_library(true);
+    }
     const bool final_odyssey_scene = !s_opening_active && !s_closing_shown &&
         s_view == VIEW_PLAYER && s_source && s_selected >= 0 &&
         s_selected < s_story_count && is_odyssey_homecoming(s_stories[s_selected]) &&

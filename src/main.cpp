@@ -7,6 +7,8 @@
 #include "shell/app_registry.h"
 #include "shell/shell.h"
 #include "touch.h"
+#include "apps/file_sync/file_sync_server.h"
+#include "file_transaction.h"
 
 #if __has_include("wifi_secrets.local.h")
 #include "wifi_secrets.local.h"
@@ -32,6 +34,11 @@ static void provision_local_wifi_credentials()
         ecp::settings::set_wifi_credentials(EPAPER_WIFI_SSID, EPAPER_WIFI_PASSWORD);
         Serial.println("[wifi] local credentials provisioned");
     }
+#if defined(EPAPER_SYNC_TOKEN)
+    if (!ecp::settings::has_sync_token() && ecp::settings::set_sync_token(EPAPER_SYNC_TOKEN)) {
+        Serial.println("[file-sync] local pairing token provisioned");
+    }
+#endif
 #endif
 }
 
@@ -57,7 +64,14 @@ void setup()
         Serial.println("[touch] init failed; touch navigation disabled for this boot");
     }
 
+    const file_storage::Status recovery = file_storage::recover_transactions();
+    if (recovery != file_storage::Status::Ok && recovery != file_storage::Status::NotReady) {
+        Serial.printf("[file-sync] transaction recovery: %s\n",
+                      file_storage::status_name(recovery));
+    }
+
 #if APP_MODE == APP_MODE_SHELL
+    file_sync_server_begin();
     shell_ble_begin_with_retry();
     shell_begin();
 #if defined(APP_AUTOSTART_PHOTOS)
