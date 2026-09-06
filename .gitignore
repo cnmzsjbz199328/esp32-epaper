@@ -28,6 +28,16 @@ assets/src/
 assets/generated/video_frames/
 assets/generated/story_frames/
 
+# Story pipeline: SD staging bundles and the generated contact sheet are
+# rebuilt by tools/stage_story_sd.ps1 and the asset checkers. Only the
+# checked-in story package (story.json, build.json, .fvid, audio/, source/)
+# is tracked.
+assets/staging/
+assets/stories/*/source/contact_sheet_generated.png
+
+# Scratch: local audio A/B/C/D comparison exports from driver debugging
+Claude outputs/
+
 # OS
 Thumbs.db
 desktop.ini
