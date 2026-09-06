@@ -1,8 +1,8 @@
 {
   "version": 1,
   "id": "odyssey_homecoming",
-  "title": "奥德赛：归航",
-  "author": "Homer",
+  "title": "THE ODYSSEY: HOMECOMING",
+  "author": "HOMER",
   "language": "zh-CN",
   "age_rating": "全年龄/12+",
   "voice": "MiniMax speech-2.8-hd / Tender CEO",
@@ -11,7 +11,7 @@
   "fvid": "odyssey_homecoming.fvid",
   "opening_audio": "audio/opening.wav",
   "opening_duration_seconds": 8.011,
-  "opening_display": {"title": "奥德赛：归航", "author": "荷马"},
+  "opening_display": {"title": "THE ODYSSEY: HOMECOMING", "author": "HOMER"},
   "closing_overlay": {"text": "OVER", "screenwriter": "TOM", "duration_seconds": 3},
   "scenes": [
     {"index": 0, "title": "特洛伊之后", "narration": "特洛伊的城火已经熄灭，奥德修斯带着船队踏上归途。他以为海路只是回家的距离，却还不知道，真正漫长的旅程，是在一次次失去方向之后，仍然记得自己要回到哪里。", "audio": "audio/000.wav", "image": "source/scenes/000.png"},

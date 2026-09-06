@@ -7,16 +7,36 @@ generated FVID container.
 
 ## Image prompt baseline
 
-Use this text in every image-generation prompt:
+Use this text in every image-generation prompt. The image is not expected to
+carry the story by atmosphere alone: the scene-specific prompt must name one
+visible action, one main subject, and one or two unmistakable props.
 
 ```text
-200x200 monochrome e-paper illustration, clear black ink line art on a mostly white paper background, strong readable silhouettes, sparse hatching, large simple shapes, one main subject, no text, no border, no watermark, no gradients, no photorealism, no solid black background, no full-bleed dark sky, no black vignette, no dense dark fog, leave generous white negative space around the subject, designed to survive 1-bit thresholding on a small 200x200 e-ink display.
+200x200 monochrome e-paper illustration, clear black ink line art on a mostly white paper background, one unmistakable narrative action, one dominant subject, no more than three secondary figures, two or three large identifying props, strong readable outer silhouettes, very thick clean contours, sparse deliberate hatching, large simple shapes, no text, no border, no watermark, no gradients, no photorealism, no solid black background, no full-bleed dark sky, no black vignette, no dense dark fog, no tiny crowd, no fine texture, leave generous white negative space around the subject, designed to survive 1-bit thresholding on a small 200x200 e-ink display.
 ```
 
-After generation, inspect a 1:1 crop and run the asset checker. Target black
-pixel ratio is 8%–32%; below 5% or above 38% needs review, and above 45% is a
-hard failure. Night, forest and storm scenes use white negative space, sparse
-branches, arcs, rain strokes and silhouettes rather than a dark background.
+After generation, inspect both the source image and the final 200x200 1-bit
+FVID result. The scene must still be identifiable at thumbnail size before it
+is accepted. Target black pixel ratio is 8%–32%; below 5% or above 38% needs
+review, and above 45% is a hard failure. Night, forest and storm scenes use
+white negative space, sparse branches, arcs, rain strokes and silhouettes
+rather than a dark background. If the subject boundary disappears after
+thresholding, regenerate the image; do not rely on a higher threshold to
+rescue it.
+
+For the Odyssey rewrite, use this scene prompt shape:
+
+```text
+Scene meaning: <one sentence copied from the matching narration>
+Visible action: <what the viewer can see happening now>
+Main subject: <one dominant person, creature, ship, or object>
+Identifying props: <one or two props that make this scene unique>
+Composition: <large separated silhouettes with white space; no montage>
+```
+
+The generated image must be checked against the matching narration before it
+is numbered. A beautiful image that only matches the general mood is rejected
+if its action cannot identify the scene.
 
 ## Audio handoff
 
