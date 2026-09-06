@@ -20,8 +20,11 @@ typedef enum {
 
 typedef struct {
     char path[64];
+    char id[32];
     char name[24];
     uint16_t frames;
+    uint16_t audio_scene_count;
+    uint8_t builtin_index;
     fvid_entry_kind_t kind;
 } fvid_entry_t;
 

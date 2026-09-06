@@ -5,8 +5,8 @@
 
 #include "frame_source.h"
 #include "story_audio.h"
-#include "story_demo_audio.h"
-#include "family_video_assets.h"
+#include "story_catalog.h"
+#include "family_video_assets.h" /* refresh-hint constants and photo source ABI */
 #include "bsp.h"
 #include "bsp_pins.h"
 #include "../../shell/shell.h"
@@ -33,6 +33,10 @@ int s_frame = 0;
 int s_streak = 0;
 bool s_from_library = false;
 const frame_source_t* s_source = nullptr;
+bool s_opening_active = false;
+bool s_opening_seen_playing = false;
+uint32_t s_opening_started_ms = 0;
+bool s_closing_shown = false;
 
 int library_page_count()
 {
@@ -72,7 +76,7 @@ void render_library()
         const fvid_entry_t& story = s_stories[index];
         char line[34];
         snprintf(line, sizeof(line), "%c %-22s %3uF", index == s_selected ? '>' : ' ',
-                 story.name, story.frames);
+                 story.id, story.frames);
         const int y = LIBRARY_ROW_Y + row * LIBRARY_ROW_H;
         if (index == s_selected) draw_selection_box(y);
         bsp_ui_fb_draw_text(6, y, line, 1);
@@ -87,18 +91,14 @@ void sync_scene_audio(bool display_ok)
         story_audio_stop();
         return;
     }
-    if (s_from_library && s_source == frame_source_sd()) {
-        story_audio_play_scene(s_stories[s_selected].path, s_frame);
+    const fvid_entry_t& story = s_stories[s_selected];
+    if (story.kind == FVID_ENTRY_SD && s_source == frame_source_sd()) {
+        Serial.printf("[video] audio map id=%s scene=%d source=SD\n", story.id, s_frame);
+        story_audio_play_scene(story.path, s_frame);
         return;
     }
-    if (s_source == frame_source_story_rom() && s_frame >= 0 &&
-        s_frame < STORY_DEMO_AUDIO_SCENE_COUNT) {
-        Serial.printf("[video] ROM scene=%d audio samples=%u\n", s_frame,
-                      (unsigned)STORY_DEMO_AUDIO_SAMPLE_COUNTS[s_frame]);
-        story_audio_play_rom_adpcm(STORY_DEMO_AUDIO_DATA[s_frame],
-                                   STORY_DEMO_AUDIO_DATA_LENGTHS[s_frame],
-                                   STORY_DEMO_AUDIO_SAMPLE_COUNTS[s_frame],
-                                   STORY_DEMO_AUDIO_SAMPLE_RATE);
+    if (story.kind == FVID_ENTRY_ROM_STORY) {
+        story_catalog_play_audio(story, s_frame);
         return;
     }
     story_audio_stop();
@@ -107,6 +107,9 @@ void sync_scene_audio(bool display_ok)
 bool show_library(bool full_refresh)
 {
     story_audio_stop();
+    s_opening_active = false;
+    s_opening_seen_playing = false;
+    s_closing_shown = false;
     if (s_story_count <= 0) {
         Serial.println("[video] library empty: NO STORIES AVAILABLE");
         return false;
@@ -125,14 +128,20 @@ bool show_frame(int target, bool force_full)
     if (count <= 0) return false;
     if (target < 0) target = 0;
     if (target >= count) target = count - 1;
+    if (target != s_frame) s_closing_shown = false;
     if (target == s_frame && !force_full) return true;
 
     uint8_t* fb = bsp_ui_fb();
     if (!s_source->load(target, fb, bsp_ui_fb_len())) {
         Serial.printf("[video] %s load frame %d failed\n", s_source->name, target);
         if (s_source == frame_source_sd()) {
-            frame_source_use_rom();
-            s_source = frame_source_current();
+            /* Keep the failed SD entry selected, but use an explicit visual
+             * fallback. Its SD audio mapping remains disabled because the
+             * active source is no longer SD. */
+            story_audio_stop();
+            s_source = frame_source_story_rom();
+            Serial.printf("[video] SD playback fallback id=%s source=ROM:FOX_FOREST\n",
+                          s_stories[s_selected].id);
             count = s_source->count();
             if (target >= count) target = count - 1;
             if (!s_source->load(target, fb, bsp_ui_fb_len())) {
@@ -176,6 +185,76 @@ bool show_frame(int target, bool force_full)
     return ok;
 }
 
+bool is_odyssey_homecoming(const fvid_entry_t& story)
+{
+    return story.kind == FVID_ENTRY_SD && strcmp(story.id, "odyssey_homecoming") == 0;
+}
+
+void render_opening_card(const fvid_entry_t& story)
+{
+    bsp_ui_fb_clear(0xFF);
+    const char* title = is_odyssey_homecoming(story) ? "THE ODYSSEY" : story.name;
+    const char* author = is_odyssey_homecoming(story) ? "HOMER" : "CLASSIC STORY";
+    const int title_x = max(4, (BSP_EPD_W - (int)strlen(title) * 12) / 2);
+    const int author_x = max(4, (BSP_EPD_W - (int)strlen(author) * 6) / 2);
+    bsp_ui_fb_fill_rect(24, 48, BSP_EPD_W - 48, 1, true);
+    bsp_ui_fb_draw_text(title_x, 72, title, 2);
+    bsp_ui_fb_draw_text(author_x, 106, author, 1);
+    bsp_ui_fb_fill_rect(24, 132, BSP_EPD_W - 48, 1, true);
+}
+
+void render_closing_card()
+{
+    bsp_ui_fb_clear(0xFF);
+    bsp_ui_fb_fill_rect(36, 52, BSP_EPD_W - 72, 1, true);
+    bsp_ui_fb_draw_text(76, 78, "OVER", 2);
+    bsp_ui_fb_draw_text(67, 112, "WRITER: TOM", 1);
+    bsp_ui_fb_fill_rect(36, 138, BSP_EPD_W - 72, 1, true);
+}
+
+void finish_opening()
+{
+    if (!s_opening_active) return;
+    s_opening_active = false;
+    s_opening_seen_playing = false;
+    Serial.println("[video] opening complete; starting scene 0");
+    if (!show_frame(0, true)) Serial.println("[video] first scene after opening FAIL");
+}
+
+bool start_opening_if_available()
+{
+    const fvid_entry_t& story = s_stories[s_selected];
+    if (!is_odyssey_homecoming(story)) return false;
+
+    render_opening_card(story);
+    if (!shell_full_refresh_current()) {
+        Serial.println("[video] opening card refresh FAIL");
+    }
+    if (!story_audio_play_opening(story.path)) return false;
+
+    s_opening_active = true;
+    s_opening_seen_playing = false;
+    s_opening_started_ms = millis();
+    Serial.printf("[video] opening active id=%s\n", story.id);
+    return true;
+}
+
+void maybe_show_closing()
+{
+    if (s_opening_active || s_closing_shown || s_view != VIEW_PLAYER || !s_source) return;
+    const fvid_entry_t& story = s_stories[s_selected];
+    if (!is_odyssey_homecoming(story) || s_frame != s_source->count() - 1) return;
+
+    const uint32_t remaining_ms = story_audio_remaining_ms();
+    if (remaining_ms == 0 || remaining_ms > 3000) return;
+    render_closing_card();
+    if (shell_full_refresh_current()) {
+        s_closing_shown = true;
+        Serial.printf("[video] closing overlay active remaining=%lums\n",
+                      (unsigned long)remaining_ms);
+    }
+}
+
 void select_story(int index)
 {
     if (index < 0) index = 0;
@@ -184,8 +263,7 @@ void select_story(int index)
 
     if (s_stories[index].kind == FVID_ENTRY_ROM_PHOTOS ||
         s_stories[index].kind == FVID_ENTRY_ROM_STORY) {
-        s_source = s_stories[index].kind == FVID_ENTRY_ROM_STORY
-            ? frame_source_story_rom() : frame_source_rom();
+        s_source = story_catalog_frame_source(s_stories[index]);
         s_frame = 0;
         s_streak = 0;
         s_from_library = true;
@@ -202,19 +280,13 @@ void select_story(int index)
     s_source = frame_source_sd();
     s_frame = 0;
     s_streak = 0;
+    s_opening_active = false;
+    s_opening_seen_playing = false;
+    s_closing_shown = false;
     s_from_library = true;
     s_view = VIEW_PLAYER;
+    if (start_opening_if_available()) return;
     if (!show_frame(0, true)) Serial.println("[video] story initial frame FAIL");
-}
-
-void add_builtin_story(const char* name, uint16_t frames, fvid_entry_kind_t kind)
-{
-    if (s_story_count >= STORY_LIBRARY_MAX || !name) return;
-    fvid_entry_t& entry = s_stories[s_story_count++];
-    memset(&entry, 0, sizeof(entry));
-    snprintf(entry.name, sizeof(entry.name), "%s", name);
-    entry.frames = frames;
-    entry.kind = kind;
 }
 
 void move_selection(int delta)
@@ -245,6 +317,14 @@ void handle_event(const shell_event_t& event)
             show_library(true);
         } else {
             shell_show_launcher();
+        }
+        return;
+    }
+    if (s_opening_active) {
+        if (event.kind == SHELL_EV_KEY &&
+            (strcmp(event.key, "space") == 0 || strcmp(event.key, "play") == 0 ||
+             strcmp(event.key, "pause") == 0)) {
+            story_audio_toggle_pause();
         }
         return;
     }
@@ -281,18 +361,25 @@ void handle_event(const shell_event_t& event)
 void app_family_video_on_enter(void)
 {
     s_story_count = 0;
-    add_builtin_story("PHOTOS", (uint16_t)frame_source_rom()->count(), FVID_ENTRY_ROM_PHOTOS);
-    add_builtin_story("FOX_FOREST", (uint16_t)frame_source_story_rom()->count(), FVID_ENTRY_ROM_STORY);
+    s_story_count = story_catalog_append_builtins(s_stories, STORY_LIBRARY_MAX);
     s_story_count += frame_source_sd_scan(s_stories + s_story_count,
                                           STORY_LIBRARY_MAX - s_story_count);
     s_selected = 0;
     s_frame = 0;
     s_streak = 0;
+    s_opening_active = false;
+    s_opening_seen_playing = false;
+    s_closing_shown = false;
     if (s_story_count > 0) {
         s_from_library = true;
         s_source = nullptr;
         show_library(true);
         Serial.printf("[video] enter view=library stories=%d\n", s_story_count);
+        for (int i = 0; i < s_story_count; i++) {
+            Serial.printf("[video] library[%d] id=%s scenes=%u source=%s\n",
+                          i, s_stories[i].id, s_stories[i].frames,
+                          story_catalog_storage_name(s_stories[i]));
+        }
         return;
     }
 
@@ -306,12 +393,35 @@ void app_family_video_on_enter(void)
 
 void app_family_video_on_exit(void)
 {
+    s_opening_active = false;
+    s_opening_seen_playing = false;
+    s_closing_shown = false;
     story_audio_stop();
 }
 
 void app_family_video_tick(void)
 {
-    handle_event(shell_wait_event(60000));
+    const bool final_odyssey_scene = !s_opening_active && !s_closing_shown &&
+        s_view == VIEW_PLAYER && s_source && s_selected >= 0 &&
+        s_selected < s_story_count && is_odyssey_homecoming(s_stories[s_selected]) &&
+        s_frame == s_source->count() - 1;
+    const uint32_t poll_ms = s_opening_active || final_odyssey_scene ? 100 : 60000;
+    const shell_event_t event = shell_wait_event(poll_ms);
+    handle_event(event);
+
+    if (s_opening_active) {
+        if (story_audio_is_playing()) s_opening_seen_playing = true;
+        const bool startup_timeout = !s_opening_seen_playing &&
+            millis() - s_opening_started_ms >= 1000;
+        if (s_opening_seen_playing && !story_audio_is_playing()) finish_opening();
+        else if (startup_timeout) {
+            Serial.println("[video] opening audio did not start; continuing");
+            finish_opening();
+        }
+        return;
+    }
+
+    maybe_show_closing();
 }
 
 void app_family_video_on_key(const char* key, const char* event)

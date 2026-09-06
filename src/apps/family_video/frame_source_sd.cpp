@@ -105,6 +105,7 @@ void sort_paths(char paths[][64], int count)
 
 void fill_entry(fvid_entry_t* entry, const char* path, uint16_t frames)
 {
+    memset(entry, 0, sizeof(*entry));
     snprintf(entry->path, sizeof(entry->path), "%s", path);
     const char* base = strrchr(path, '/');
     base = base ? base + 1 : path;
@@ -112,9 +113,12 @@ void fill_entry(fvid_entry_t* entry, const char* path, uint16_t frames)
     snprintf(name, sizeof(name), "%s", base);
     char* extension = strrchr(name, '.');
     if (extension) *extension = '\0';
+    snprintf(entry->id, sizeof(entry->id), "%s", name);
     for (char* p = name; *p; p++) *p = (char)toupper((unsigned char)*p);
     snprintf(entry->name, sizeof(entry->name), "%s", name);
     entry->frames = frames;
+    entry->audio_scene_count = frames;
+    entry->builtin_index = 0;
     entry->kind = FVID_ENTRY_SD;
 }
 

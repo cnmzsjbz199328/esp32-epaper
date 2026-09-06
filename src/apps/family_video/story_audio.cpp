@@ -30,6 +30,9 @@ volatile uint32_t s_command_version = 0;
 volatile bool s_pause_requested = false;
 volatile bool s_playing = false;
 volatile bool s_paused = false;
+volatile uint32_t s_total_samples = 0;
+volatile uint32_t s_played_samples = 0;
+volatile uint32_t s_current_sample_rate = 0;
 char s_command_path[COMMAND_PATH_LEN] = {};
 audio_source_t s_command_source = AUDIO_SOURCE_NONE;
 const int16_t* s_command_samples = nullptr;
@@ -164,6 +167,9 @@ void play_wav(const char* path, uint32_t version)
     int16_t samples[AUDIO_BLOCK_SAMPLES] = {};
     size_t remaining = info.data_length & ~((size_t)1);
     size_t played = 0;
+    s_total_samples = info.data_length / sizeof(int16_t);
+    s_played_samples = 0;
+    s_current_sample_rate = info.sample_rate;
     s_playing = true;
     s_paused = false;
     bsp_audio_amp(true);
@@ -182,6 +188,7 @@ void play_wav(const char* path, uint32_t version)
         const size_t written = bsp_audio_write_mono(samples, sample_count);
         if (written == 0) break;
         played += written * sizeof(int16_t);
+        s_played_samples = played / sizeof(int16_t);
         remaining -= written * sizeof(int16_t);
         memset(samples, 0, sizeof(samples));
     }
@@ -191,6 +198,9 @@ void play_wav(const char* path, uint32_t version)
     file.close();
     s_playing = false;
     s_paused = false;
+    s_total_samples = 0;
+    s_played_samples = 0;
+    s_current_sample_rate = 0;
 
     Serial.printf("[story-audio] scene audio %s bytes=%u/%u %s\n", path,
                   (unsigned)played, (unsigned)info.data_length,
@@ -207,6 +217,9 @@ void play_pcm(const int16_t* samples, size_t sample_count, uint32_t sample_rate,
 
     int16_t block[AUDIO_BLOCK_SAMPLES] = {};
     size_t offset = 0;
+    s_total_samples = sample_count;
+    s_played_samples = 0;
+    s_current_sample_rate = sample_rate;
     s_playing = true;
     s_paused = false;
     bsp_audio_amp(true);
@@ -219,11 +232,15 @@ void play_pcm(const int16_t* samples, size_t sample_count, uint32_t sample_rate,
         const size_t written = bsp_audio_write_mono(block, count);
         if (written == 0) break;
         offset += written;
+        s_played_samples = offset;
     }
     bsp_audio_amp(false);
     memset(block, 0, sizeof(block));
     s_playing = false;
     s_paused = false;
+    s_total_samples = 0;
+    s_played_samples = 0;
+    s_current_sample_rate = 0;
     Serial.printf("[story-audio] ROM PCM samples=%u/%u %s\n", (unsigned)offset,
                   (unsigned)sample_count,
                   command_cancelled(version) ? "cancelled" : "done");
@@ -285,6 +302,9 @@ void play_adpcm(const uint8_t* data, size_t data_length, size_t sample_count,
 
     int16_t block[ADPCM_BLOCK_SAMPLES] = {};
     size_t sample_offset = 0;
+    s_total_samples = sample_count;
+    s_played_samples = 0;
+    s_current_sample_rate = sample_rate;
     s_playing = true;
     s_paused = false;
     bsp_audio_amp(true);
@@ -316,6 +336,7 @@ void play_adpcm(const uint8_t* data, size_t data_length, size_t sample_count,
             block_offset += written;
         }
         sample_offset += block_offset;
+        s_played_samples = sample_offset;
         if (block_offset < block_count) break;
     }
 
@@ -323,6 +344,9 @@ void play_adpcm(const uint8_t* data, size_t data_length, size_t sample_count,
     memset(block, 0, sizeof(block));
     s_playing = false;
     s_paused = false;
+    s_total_samples = 0;
+    s_played_samples = 0;
+    s_current_sample_rate = 0;
     Serial.printf("[story-audio] ROM ADPCM samples=%u/%u bytes=%u/%u %s\n",
                   (unsigned)sample_offset, (unsigned)sample_count,
                   (unsigned)(4 + nibble_bytes), (unsigned)data_length,
@@ -428,8 +452,38 @@ bool story_audio_play_scene(const char* story_path, int scene_index)
 
     char path[COMMAND_PATH_LEN] = {};
     snprintf(path, sizeof(path), "%s/audio/%03d.wav", base, scene_index);
+    File file = SD_MMC.open(path, FILE_READ);
+    if (!file) {
+        Serial.printf("[story-audio] scene audio not found: %s\n", path);
+        return false;
+    }
+    file.close();
     request_command(AUDIO_SOURCE_SD_WAV, path, nullptr, nullptr, 0, 0, 0);
     Serial.printf("[story-audio] queue scene=%d path=%s\n", scene_index, path);
+    return true;
+}
+
+bool story_audio_play_opening(const char* story_path)
+{
+    if (!story_path) return false;
+    story_audio_init();
+    if (!s_task || !bsp_audio_ready() || !bsp_sd_ready()) return false;
+
+    char base[COMMAND_PATH_LEN] = {};
+    snprintf(base, sizeof(base), "%s", story_path);
+    char* extension = strrchr(base, '.');
+    if (extension && strcmp(extension, ".fvid") == 0) *extension = '\0';
+
+    char path[COMMAND_PATH_LEN] = {};
+    snprintf(path, sizeof(path), "%s/audio/opening.wav", base);
+    File file = SD_MMC.open(path, FILE_READ);
+    if (!file) {
+        Serial.printf("[story-audio] opening audio not found: %s\n", path);
+        return false;
+    }
+    file.close();
+    request_command(AUDIO_SOURCE_SD_WAV, path, nullptr, nullptr, 0, 0, 0);
+    Serial.printf("[story-audio] queue opening path=%s\n", path);
     return true;
 }
 
@@ -468,3 +522,12 @@ void story_audio_toggle_pause(void)
 
 bool story_audio_is_playing(void) { return s_playing; }
 bool story_audio_is_paused(void) { return s_paused; }
+
+uint32_t story_audio_remaining_ms(void)
+{
+    const uint32_t total = s_total_samples;
+    const uint32_t played = s_played_samples;
+    const uint32_t rate = s_current_sample_rate;
+    if (!s_playing || rate == 0 || played >= total) return 0;
+    return (uint32_t)(((uint64_t)(total - played) * 1000ULL) / rate);
+}
