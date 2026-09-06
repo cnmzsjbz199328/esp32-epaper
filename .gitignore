@@ -23,17 +23,23 @@ __pycache__/
 .venv/
 venv/
 
-# Assets: keep generated C arrays, ignore source photos
+# Assets: ignore source photos. The compiled C frame arrays are retired;
+# formal stories ship as FVID packages synced to the TF card.
 assets/src/
 assets/generated/video_frames/
 assets/generated/story_frames/
 
 # Story pipeline: SD staging bundles and the generated contact sheet are
-# rebuilt by tools/stage_story_sd.ps1 and the asset checkers. Only the
-# checked-in story package (story.json, build.json, .fvid, audio/, source/)
-# is tracked.
+# rebuilt by tools/stage_story_sd.ps1 and the asset checkers. The tracked
+# story package is story.json, build.json, <id>.fvid, audio/ (the 16kHz
+# runtime WAVs), and the visual source under source/ (scene PNGs).
 assets/staging/
 assets/stories/*/source/contact_sheet_generated.png
+
+# Raw provider TTS exports live under source/audio_<provider>/ (multiple
+# regeneration takes, 24-44kHz). They are regenerable from ai_studio_script.md
+# and are not tracked; only the downsampled runtime audio/ dir is.
+assets/stories/*/source/audio_*/
 
 # Scratch: local audio A/B/C/D comparison exports from driver debugging
 Claude outputs/

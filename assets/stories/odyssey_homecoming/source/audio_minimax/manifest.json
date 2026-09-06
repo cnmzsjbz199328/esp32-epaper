@@ -1,8 +1,0 @@
-[
-  {"index": 0, "file": "000.wav", "source_file": "MiniMax_2026-09-06_09_24_13_Tender_CEO.wav", "source_format": "32kHz/16bit/mono PCM WAV", "duration_seconds": 15.15},
-  {"index": 1, "file": "001.wav", "source_file": "MiniMax_2026-09-06_09_26_22_Tender_CEO.wav", "source_format": "32kHz/16bit/mono PCM WAV", "duration_seconds": 14.81},
-  {"index": 2, "file": "002.wav", "source_file": "MiniMax_2026-09-06_09_27_06_Tender_CEO.wav", "source_format": "32kHz/16bit/mono PCM WAV", "duration_seconds": 16.23},
-  {"index": 3, "file": "003.wav", "source_file": "MiniMax_2026-09-06_09_27_35_Tender_CEO.wav", "source_format": "32kHz/16bit/mono PCM WAV", "duration_seconds": 16.74},
-  {"index": 4, "file": "004.wav", "source_file": "MiniMax_2026-09-06_09_28_19_Tender_CEO.wav", "source_format": "32kHz/16bit/mono PCM WAV", "duration_seconds": 14.77},
-  {"index": 5, "file": "005.wav", "source_file": "MiniMax_2026-09-06_09_28_51_Tender_CEO.wav", "source_format": "32kHz/16bit/mono PCM WAV", "duration_seconds": 15.53}
-]

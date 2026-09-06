@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "midsummer_dream",
+  "title": "仲夏夜之梦",
+  "author": "William Shakespeare",
+  "language": "zh-CN",
+  "age_rating": "全年龄/12+",
+  "voice": "待生成：MiniMax 独立人声",
+  "audio_status": "pending",
+  "audio_format": "16kHz/16bit/mono PCM WAV",
+  "fvid": "midsummer_dream.fvid",
+  "scenes": [
+    {"index": 0, "title": "雅典的法令", "narration": "在雅典，赫米娅必须按照父亲的意愿结婚，否则就要接受严厉惩罚。她爱的是拉山德，却被要求把服从伪装成幸福。两个人于是决定离开城市，去寻找能够自己作决定的地方。", "audio": "audio/000.wav", "image": "source/scenes/000.png"},
+    {"index": 1, "title": "走进森林", "narration": "赫米娅和拉山德在月亮升起时走进森林，身后是法律、家族和追赶而来的命令。森林的小路没有承诺安全，只把他们带离熟悉的秩序，让每个人必须直接面对自己的愿望。", "audio": "audio/001.wav", "image": "source/scenes/001.png"},
+    {"index": 2, "title": "精灵王后的争执", "narration": "精灵王奥伯龙与提泰妮娅为了一个孩子争执不休。两位拥有魔法的统治者，也会把占有欲说成关心，把权力说成正义。森林因此失去平衡，花草和天气都像在替他们争吵。", "audio": "audio/002.wav", "image": "source/scenes/002.png"},
+    {"index": 3, "title": "一朵有魔法的花", "narration": "奥伯龙命令帕克寻找一朵花，把汁液滴在熟睡者眼上，就能让他爱上醒来后看见的第一人。帕克带着轻快的任务飞入森林，却没有认真确认对象。魔法最危险的地方，正是它看起来太容易。", "audio": "audio/003.wav", "image": "source/scenes/003.png"},
+    {"index": 4, "title": "工匠的戏剧", "narration": "一群工匠也来到森林排练婚礼上的戏剧。他们想把悲剧演得庄严，却连台词和出口都记不清楚。笨拙的排练让人发笑，也提醒人们：每个人都在扮演某种角色，却未必知道自己想成为谁。", "audio": "audio/004.wav", "image": "source/scenes/004.png"},
+    {"index": 5, "title": "错落的爱意", "narration": "花汁落在错误的眼睛上，一个人醒来便爱上了不该爱的人。原本彼此相爱的朋友开始互相追逐、指责和争辩，连自己的心也不再相信。森林把隐藏的嫉妒放大，让一句误会变成了四个人的伤害。", "audio": "audio/005.wav", "image": "source/scenes/005.png"},
+    {"index": 6, "title": "波顿的变形", "narration": "帕克又一次认错了人，把工匠波顿变成了驴头。提泰妮娅在魔法中爱上这个荒唐的身影，把真实的他完全看不见。笑声背后，是一个严肃的问题：当别人爱的是幻象，得到的究竟算不算被爱。", "audio": "audio/006.wav", "image": "source/scenes/006.png"},
+    {"index": 7, "title": "误会升级", "narration": "魔法让每个人都以为自己终于说出了真心，实际却不断把别人推得更远。赫米娅、拉山德和追赶他们的人在林中互相伤害，疲惫使争吵变得尖锐。爱情没有让他们自动变得善良，反而暴露出恐惧和占有。", "audio": "audio/007.wav", "image": "source/scenes/007.png"},
+    {"index": 8, "title": "收回错误", "narration": "奥伯龙看见自己的命令已经失控，终于承认这不是一场可以随意操纵的游戏。他让帕克逐一解除错误的魔法，并命令森林安静下来。修正过错的第一步，不是解释自己本来没有恶意，而是停止让别人继续承受后果。", "audio": "audio/008.wav", "image": "source/scenes/008.png"},
+    {"index": 9, "title": "黎明前的辨认", "narration": "天快亮了，魔法逐渐褪去，年轻人从疲惫和混乱中醒来。他们记得争吵，却无法确定哪些感情属于自己。森林边缘的沉默给了他们时间：在重新作出承诺以前，先确认自己真正看见了谁。", "audio": "audio/009.wav", "image": "source/scenes/009.png"},
+    {"index": 10, "title": "梦与伤痕", "narration": "阳光穿过树梢，昨夜的一切像梦，却没有因此变得毫无意义。经历过被误认、被追逐和被操纵之后，他们开始明白，愿望若不经过选择和责任，很容易变成伤害。醒来不等于忘记，而是带着记忆回到现实。", "audio": "audio/010.wav", "image": "source/scenes/010.png"},
+    {"index": 11, "title": "公爵的选择", "narration": "雅典公爵忒修斯在森林找到几对年轻人。他本可以照旧执行法令，却听见了他们自己的声音，于是选择让婚姻不再只是家族命令。城市的秩序没有消失，但它第一次为人的选择留下了位置。", "audio": "audio/011.wav", "image": "source/scenes/011.png"},
+    {"index": 12, "title": "婚礼与舞台", "narration": "婚礼上，三对关系以不同方式重新排列。工匠们演出那场笨拙的悲剧，台上的死亡被演成笑话，台下的人却因此看见自己的恐惧。戏剧没有替他们解决人生，只让他们有机会从旁边看一眼自己的选择。", "audio": "audio/012.wav", "image": "source/scenes/012.png"},
+    {"index": 13, "title": "梦醒之后", "narration": "夜晚结束，众人离开森林，帕克请观众把一切当作梦。可梦也许只是现实不敢直说的部分：人会渴望、犯错、伤害彼此，也仍然能够重新学习如何相爱。真正的魔法，是醒来以后愿意承担自己做过的选择。", "audio": "audio/013.wav", "image": "source/scenes/013.png"}
+  ]
+}

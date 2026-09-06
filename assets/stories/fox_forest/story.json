@@ -7,41 +7,42 @@
   "age_rating": "6+",
   "voice": "Gemini 3.1 Flash TTS Preview / Achernar",
   "audio_format": "16kHz/16bit/mono PCM WAV",
+  "fvid": "fox_forest.fvid",
   "scenes": [
     {
       "index": 0,
       "title": "森林入口",
       "narration": "夜色刚刚降临，小狐狸围着蓝色围巾，走到了月光森林的入口。前方的小路弯弯曲曲，好像在邀请它开始一场温柔的冒险。",
       "audio": "audio/000.wav",
-      "image": "../source/scenes/000.png"
+      "image": "source/scenes/000.png"
     },
     {
       "index": 1,
       "title": "发光的石头",
       "narration": "走了没多远，小狐狸在树根旁发现了一块会发光的石头。它伸出小爪子，轻轻碰了碰，石头立刻像星星一样闪了一下。",
       "audio": "audio/001.wav",
-      "image": "../source/scenes/001.png"
+      "image": "source/scenes/001.png"
     },
     {
       "index": 2,
       "title": "猫头鹰的声音",
       "narration": "这时，树枝上传来一个温柔的声音。原来是一只猫头鹰，它告诉小狐狸，沿着月光照亮的小路，就能找到森林里的秘密。",
       "audio": "audio/002.wav",
-      "image": "../source/scenes/002.png"
+      "image": "source/scenes/002.png"
     },
     {
       "index": 3,
       "title": "穿过小溪",
       "narration": "小狐狸跟着猫头鹰来到一条小溪边。它踩着一块又一块平坦的石头，小心地走过溪水，水面上的月光也跟着摇晃起来。",
       "audio": "audio/003.wav",
-      "image": "../source/scenes/003.png"
+      "image": "source/scenes/003.png"
     },
     {
       "index": 4,
       "title": "平安回家",
       "narration": "天快亮了，小狐狸和猫头鹰一起走回森林入口。它知道，真正的宝藏不是发光的石头，而是在黑夜里遇见了一位朋友。",
       "audio": "audio/004.wav",
-      "image": "../source/scenes/004.png"
+      "image": "source/scenes/004.png"
     }
   ]
 }
