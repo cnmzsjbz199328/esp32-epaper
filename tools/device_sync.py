@@ -7,7 +7,6 @@ import argparse
 import hashlib
 import json
 import os
-import secrets
 import socket
 import sys
 import time
@@ -18,7 +17,10 @@ from pathlib import Path
 
 
 DISCOVERY_PORT = 4210
-CHUNK_SIZE = 1436
+# WebServer splits larger request bodies into its internal raw buffer before
+# invoking the firmware callback, so a larger host chunk reduces HTTP
+# round-trips without changing the device-side write granularity.
+CHUNK_SIZE = 524288
 CONFIG_PATH = Path.home() / ".device_sync.json"
 
 
@@ -116,11 +118,21 @@ class DeviceSync:
                           "sha256": sha256_file(path)})
         if not files:
             raise DeviceError("local directory contains no files")
-        transaction = f"sync-{time.strftime('%Y%m%d-%H%M%S')}-{secrets.token_hex(2)}"
-        prepared = self.request("POST", "/api/v1/sync/prepare",
-                                json.dumps({"transaction": transaction,
-                                            "root": remote_root, "files": files}),
-                                {"Content-Type": "application/json"})
+        manifest_key = json.dumps({"root": remote_root, "files": files},
+                                  sort_keys=True, separators=(",", ":")).encode()
+        transaction = f"sync-{hashlib.sha256(manifest_key).hexdigest()[:32]}"
+        try:
+            prepared = self.request("POST", "/api/v1/sync/prepare",
+                                    json.dumps({"transaction": transaction,
+                                                "root": remote_root, "files": files}),
+                                    {"Content-Type": "application/json"})
+        except DeviceError as error:
+            # A stable manifest ID makes an already committed package a
+            # successful no-op, which keeps sync-library rerunnable.
+            if "already_exists" not in str(error):
+                raise
+            print(f"already synchronized {remote_root} ({len(files)} files)")
+            return
         print(f"prepared {prepared.get('transaction', transaction)} ({len(files)} files)")
         try:
             for item in files:
@@ -146,12 +158,40 @@ class DeviceSync:
                                   {"Content-Type": "application/json"})
             print(f"committed {result}")
         except Exception:
-            try:
-                self.request("POST", "/api/v1/sync/abort", "{}",
-                             {"Content-Type": "application/json"})
-            except DeviceError:
-                pass
+            # Leave a PREPARED transaction on the device. Re-running the same
+            # command uses the stable manifest ID and resumes from status.
             raise
+
+    def sync_story(self, local_root: Path):
+        """Validate and atomically replace one /video/<story-id> package."""
+        from check_story_assets import check_story
+
+        local_root = local_root.resolve()
+        if not local_root.is_dir():
+            raise DeviceError(f"story package not found: {local_root}")
+        result = check_story(local_root)
+        if result != 0:
+            raise DeviceError(f"story validation failed: {local_root.name}")
+        metadata = json.loads((local_root / "story.json").read_text(encoding="utf-8"))
+        story_id = metadata.get("id", local_root.name)
+        if story_id != local_root.name or any(char not in "abcdefghijklmnopqrstuvwxyz0123456789_-" for char in story_id):
+            raise DeviceError("story id must match its directory and contain only lowercase letters, digits, '-' or '_'")
+        self.sync_directory(local_root, f"/video/{story_id}")
+
+    def sync_library(self, local_root: Path):
+        failures = 0
+        packages = sorted(path for path in local_root.iterdir() if path.is_dir())
+        if not packages:
+            raise DeviceError(f"no story packages found: {local_root}")
+        for package in packages:
+            try:
+                print(f"sync-story {package.name}")
+                self.sync_story(package)
+            except (DeviceError, OSError) as error:
+                failures += 1
+                print(f"  FAILED {package.name}: {error}", file=sys.stderr)
+        if failures:
+            raise DeviceError(f"{failures} story package(s) failed; existing device versions were left untouched")
 
     def delete(self, remote: str, recursive: bool = False):
         query = urllib.parse.urlencode({"path": remote, "confirm": "true",
@@ -286,6 +326,10 @@ def build_parser():
     sync = sub.add_parser("sync")
     sync.add_argument("local", type=Path)
     sync.add_argument("remote_root")
+    sync_story = sub.add_parser("sync-story")
+    sync_story.add_argument("local", type=Path)
+    sync_library = sub.add_parser("sync-library")
+    sync_library.add_argument("local", type=Path)
     delete = sub.add_parser("delete")
     delete.add_argument("remote")
     delete.add_argument("--recursive", action="store_true")
@@ -324,6 +368,10 @@ def main() -> int:
             client.download(args.remote, args.local)
         elif args.command == "sync":
             client.sync_directory(args.local, args.remote_root)
+        elif args.command == "sync-story":
+            client.sync_story(args.local)
+        elif args.command == "sync-library":
+            client.sync_library(args.local)
         elif args.command == "delete":
             client.delete(args.remote, args.recursive)
         elif args.command == "rename":

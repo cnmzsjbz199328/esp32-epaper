@@ -20,6 +20,9 @@ namespace {
 constexpr uint16_t SERVER_PORT = 80;
 constexpr size_t LIST_CAPACITY = 64;
 constexpr size_t RAW_PATH_LENGTH = file_storage::PATH_MAX_LENGTH;
+/* Coalesce one host request before the slow TF flush. The buffer is allocated
+ * from PSRAM at first use so Wi-Fi and HTTP task internal RAM stay available. */
+constexpr size_t RAW_UPLOAD_BUFFER_SIZE = 524288;
 constexpr const char* HTTP_STAGING_PATH = "/sdcard/.sync_staging/.http_upload";
 
 WebServer s_server(SERVER_PORT);
@@ -57,6 +60,8 @@ struct raw_upload_t {
     char expected_sha256[file_storage::SHA256_HEX_LENGTH + 1] = {};
 };
 raw_upload_t s_raw;
+uint8_t* s_raw_body = nullptr;
+size_t s_raw_body_size = 0;
 
 void update_state(const char* status, const char* error = nullptr)
 {
@@ -355,6 +360,12 @@ void handle_raw_upload()
     HTTPRaw& raw = s_server.raw();
     if (raw.status == RAW_START) {
         s_raw = {};
+        s_raw_body_size = 0;
+        if (!s_raw_body) s_raw_body = static_cast<uint8_t*>(ps_malloc(RAW_UPLOAD_BUFFER_SIZE));
+        if (!s_raw_body) {
+            raw_fail(file_storage::Status::IoError);
+            return;
+        }
         s_raw.authorized = authorized_without_response();
         if (!s_raw.authorized) {
             raw_fail(file_storage::Status::PermissionDenied);
@@ -420,27 +431,13 @@ void handle_raw_upload()
     }
     if (raw.status == RAW_WRITE) {
         if (s_raw.failed) return;
-        if (s_raw.mode == RAW_DIRECT_FILE) {
-            size_t written = 0;
-            const file_storage::Status status = file_storage::write_at(
-                HTTP_STAGING_PATH, s_raw.offset, raw.buf, raw.currentSize, false, &written);
-            if (status != file_storage::Status::Ok) raw_fail(status);
-            else if (written != raw.currentSize) raw_fail(file_storage::Status::IoError);
-            else {
-                s_raw.offset += written;
-                s_raw.received += written;
-            }
-        } else if (s_raw.mode == RAW_TRANSACTION_CHUNK) {
-            size_t written = 0;
-            const file_storage::Status status = s_transaction.write_chunk(
-                s_raw.relative_path, s_raw.offset, raw.buf, raw.currentSize, &written);
-            if (status != file_storage::Status::Ok) raw_fail(status);
-            else if (written != raw.currentSize) raw_fail(file_storage::Status::IoError);
-            else {
-                s_raw.offset += written;
-                s_raw.received += written;
-            }
+        if (raw.currentSize > RAW_UPLOAD_BUFFER_SIZE ||
+            s_raw_body_size > RAW_UPLOAD_BUFFER_SIZE - raw.currentSize) {
+            raw_fail(file_storage::Status::InvalidArgument);
+            return;
         }
+        memcpy(s_raw_body + s_raw_body_size, raw.buf, raw.currentSize);
+        s_raw_body_size += raw.currentSize;
         return;
     }
     if (raw.status == RAW_ABORTED) {
@@ -455,8 +452,30 @@ void handle_raw_upload()
         raw_fail(file_storage::Status::Incomplete);
     }
     if (!s_raw.failed && s_raw.final_chunk && s_raw.expected_total != UINT64_MAX &&
-        s_raw.offset != s_raw.expected_total) {
+        (s_raw_body_size > UINT64_MAX - s_raw.offset ||
+         s_raw.offset + s_raw_body_size != s_raw.expected_total)) {
         raw_fail(file_storage::Status::Incomplete);
+    }
+    if (!s_raw.failed && s_raw.mode == RAW_DIRECT_FILE) {
+        size_t written = 0;
+        const file_storage::Status status = file_storage::write_at(
+            HTTP_STAGING_PATH, s_raw.offset, s_raw_body, s_raw_body_size, false, &written);
+        if (status != file_storage::Status::Ok) raw_fail(status);
+        else if (written != s_raw_body_size) raw_fail(file_storage::Status::IoError);
+        else {
+            s_raw.offset += written;
+            s_raw.received = written;
+        }
+    } else if (!s_raw.failed && s_raw.mode == RAW_TRANSACTION_CHUNK) {
+        size_t written = 0;
+        const file_storage::Status status = s_transaction.write_chunk(
+            s_raw.relative_path, s_raw.offset, s_raw_body, s_raw_body_size, &written);
+        if (status != file_storage::Status::Ok) raw_fail(status);
+        else if (written != s_raw_body_size) raw_fail(file_storage::Status::IoError);
+        else {
+            s_raw.offset += written;
+            s_raw.received = written;
+        }
     }
     const bool direct_complete = s_raw.final_chunk;
     if (!s_raw.failed && direct_complete && s_raw.mode == RAW_DIRECT_FILE && s_raw.expected_sha256[0]) {
@@ -512,10 +531,6 @@ void handle_rename()
 void handle_prepare()
 {
     if (!authorized()) return;
-    if (s_transaction.active()) {
-        send_error(409, "transaction_active");
-        return;
-    }
     JsonDocument document;
     if (deserializeJson(document, s_server.arg("plain"))) {
         send_error(400, "invalid_json");
@@ -529,7 +544,25 @@ void handle_prepare()
         send_error(400, "invalid_manifest");
         return;
     }
-    file_storage::TransactionFileSpec specs[file_storage::TRANSACTION_FILE_MAX] = {};
+    if (s_transaction.active()) {
+        char normalized_root[file_storage::PATH_MAX_LENGTH] = {};
+        if (file_storage::normalize_path(root, normalized_root, sizeof(normalized_root)) != file_storage::Status::Ok ||
+            strcmp(transaction, s_transaction.id()) != 0 || strcmp(normalized_root, s_transaction.target_root()) != 0) {
+            send_error(409, "transaction_active");
+            return;
+        }
+        JsonDocument response;
+        response["ok"] = true;
+        response["transaction"] = transaction;
+        response["root"] = root;
+        response["resumed"] = true;
+        send_json(200, response);
+        return;
+    }
+    /* The HTTP task has a deliberately bounded stack. A full story package
+     * can contain many audio and metadata files, so keep the manifest in
+     * static storage rather than consuming several KB of task stack. */
+    static file_storage::TransactionFileSpec specs[file_storage::TRANSACTION_FILE_MAX] = {};
     size_t index = 0;
     for (JsonObject item : files_json) {
         specs[index].path = item["path"] | "";
@@ -541,7 +574,12 @@ void handle_prepare()
         }
         index++;
     }
+    Serial.printf("[file-sync] prepare begin tx=%s files=%u root=%s\n",
+                  transaction, (unsigned)index, root);
+    const uint32_t prepare_started = millis();
     const file_storage::Status status = s_transaction.begin(transaction, root, specs, index);
+    Serial.printf("[file-sync] prepare end status=%s elapsed=%lu ms\n",
+                  file_storage::status_name(status), (unsigned long)(millis() - prepare_started));
     if (status != file_storage::Status::Ok) {
         send_status(status, "prepare");
         return;

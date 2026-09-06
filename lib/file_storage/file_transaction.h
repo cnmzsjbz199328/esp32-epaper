@@ -6,7 +6,10 @@ namespace file_storage {
 
 constexpr size_t TRANSACTION_ID_MAX_LENGTH = 48;
 constexpr size_t TRANSACTION_PATH_MAX_LENGTH = 160;
-constexpr size_t TRANSACTION_FILE_MAX = 32;
+/* Story packages may include FVID, audio, images, and optional source or
+ * metadata files. Keep one transaction atomic without forcing hosts to split
+ * a package into independently replaceable pieces. */
+constexpr size_t TRANSACTION_FILE_MAX = 128;
 
 struct TransactionFileSpec {
     const char* path;       /* Relative to target_root, e.g. story.json. */

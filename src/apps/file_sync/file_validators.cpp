@@ -76,16 +76,63 @@ bool validate_png_dimensions(const char* path)
             (uint32_t)header[22] << 8 | header[23]) == BSP_EPD_H;
 }
 
+bool safe_package_reference(const char* reference)
+{
+    if (!reference || !reference[0] || reference[0] == '/' || strchr(reference, '\\')) return false;
+    for (const char* p = reference; *p; p++) {
+        if ((unsigned char)*p < 0x20) return false;
+    }
+    const char* start = reference;
+    while (*start) {
+        const char* end = strchr(start, '/');
+        const size_t length = end ? (size_t)(end - start) : strlen(start);
+        if (length == 0 || (length == 2 && start[0] == '.' && start[1] == '.')) return false;
+        start = end ? end + 1 : start + length;
+    }
+    return true;
+}
+
+bool package_path(const char* root, const char* reference, char* path, size_t capacity)
+{
+    if (!safe_package_reference(reference) || !path) return false;
+    return snprintf(path, capacity, "%s/%s", root, reference) < (int)capacity;
+}
+
 bool validate_story_reference(const char* root, JsonDocument& document)
 {
     const char* reference = document["fvid"] | "";
-    if (!reference[0]) reference = document["video"] | "";
-    if (!reference[0]) return true;
+    if (!safe_package_reference(reference)) return false;
     char path[file_storage::PATH_MAX_LENGTH] = {};
-    if (reference[0] == '/') snprintf(path, sizeof(path), "%s", reference);
-    else snprintf(path, sizeof(path), "%s/%s", root, reference);
+    if (!package_path(root, reference, path, sizeof(path))) return false;
     file_storage::FileInfo info;
-    return file_storage::stat(path, &info) == file_storage::Status::Ok && !info.is_directory;
+    if (file_storage::stat(path, &info) != file_storage::Status::Ok || info.is_directory) return false;
+
+    JsonArray scenes = document["scenes"].as<JsonArray>();
+    if (!scenes.isNull()) {
+        for (JsonObject scene : scenes) {
+            const char* image = scene["image"] | "";
+            const char* audio = scene["audio"] | "";
+            if (image[0]) {
+                if (!package_path(root, image, path, sizeof(path)) ||
+                    file_storage::stat(path, &info) != file_storage::Status::Ok || info.is_directory ||
+                    !validate_png_dimensions(path)) return false;
+            }
+            /* Audio is optional at runtime. An absent or invalid audio path is
+             * reported by the story scanner while the visual story remains
+             * playable, but path traversal is never accepted. */
+            if (audio[0]) {
+                if (!safe_package_reference(audio) ||
+                    !package_path(root, audio, path, sizeof(path))) return false;
+                if (file_storage::stat(path, &info) == file_storage::Status::Ok) {
+                    if (info.is_directory) return false;
+                    file_validation_report_t audio_report;
+                    if (file_validate_audio(path, &audio_report) != file_storage::Status::Ok) return false;
+                }
+            }
+        }
+    }
+    const char* opening = document["opening_audio"] | "";
+    return !opening[0] || safe_package_reference(opening);
 }
 
 }  // namespace
@@ -214,15 +261,10 @@ file_storage::Status file_validate_story_package(const char* root,
                 status = file_validate_fvid(entries[i].path, &child);
                 if (status != file_storage::Status::Ok) { fail(report, child.detail); return status; }
                 if (report) report->fvid_checked++;
-            } else if (is_extension(entries[i].path, ".wav")) {
-                file_validation_report_t child;
-                status = file_validate_audio(entries[i].path, &child);
-                if (status != file_storage::Status::Ok) { fail(report, child.detail); return status; }
-                if (report) report->audio_checked++;
-            } else if (is_extension(entries[i].path, ".png") && !validate_png_dimensions(entries[i].path)) {
-                fail(report, "PNG dimensions are not 200x200");
-                return file_storage::Status::InvalidArgument;
             }
+            /* Referenced PNG/WAV resources are checked while parsing
+             * story.json. Unreferenced previews, source audio, and ordinary
+             * files may coexist in a package without blocking its commit. */
             uint16_t number = 0;
             if ((is_extension(entries[i].path, ".wav") || is_extension(entries[i].path, ".png")) &&
                 numeric_stem(entries[i].path, &number) && number < 128) {
