@@ -20,13 +20,17 @@ from PIL import Image, ImageOps
 
 def check_story(story_dir: Path) -> int:
     build_path = story_dir / "build.json"
-    story_root = story_dir / story_dir.name
-    story_path = story_root / "story.json"
-    if not build_path.is_file() or not story_path.is_file():
-        raise FileNotFoundError(f"expected build.json and {story_dir.name}/story.json in {story_dir}")
+    story_path = story_dir / "story.json"
+    if not story_path.is_file():
+        legacy_path = story_dir / story_dir.name / "story.json"
+        story_path = legacy_path if legacy_path.is_file() else story_path
+    if not story_path.is_file():
+        raise FileNotFoundError(f"expected story.json in {story_dir}")
 
-    build = json.loads(build_path.read_text(encoding="utf-8"))
-    build_spec = build.get("stories", [build])[0]
+    build_spec = {}
+    if build_path.is_file():
+        build = json.loads(build_path.read_text(encoding="utf-8"))
+        build_spec = build.get("stories", [build])[0]
     story = json.loads(story_path.read_text(encoding="utf-8"))
     scenes = story.get("scenes", [])
     audio_pending = story.get("audio_status") == "pending"
@@ -53,12 +57,12 @@ def check_story(story_dir: Path) -> int:
     if not scenes:
         error("story has no scenes")
 
-    script = (story_root / "ai_studio_script.md").read_text(encoding="utf-8") \
-        if (story_root / "ai_studio_script.md").is_file() else ""
+    script_path = story_path.parent / "ai_studio_script.md"
+    script = script_path.read_text(encoding="utf-8") if script_path.is_file() else ""
     source_dir = story_dir / build_spec.get("frames_dir", "source/scenes")
     glob = build_spec.get("glob", "*.png")
-    frame_paths = sorted(source_dir.glob(glob))
-    if len(frame_paths) != len(scenes):
+    frame_paths = sorted(source_dir.glob(glob)) if source_dir.is_dir() else []
+    if build_spec and len(frame_paths) != len(scenes):
         error(f"scene count {len(scenes)} does not match frame count {len(frame_paths)}")
 
     seen_scene_images: set[Path] = set()
@@ -67,17 +71,19 @@ def check_story(story_dir: Path) -> int:
         narration = scene.get("narration", "")
         image_ref = scene.get("image")
         audio_ref = scene.get("audio")
-        if not narration or narration not in script:
+        if script and (not narration or narration not in script):
             error(f"scene {index}: narration is missing or differs from ai_studio_script.md")
-        if not image_ref or not audio_ref:
-            error(f"scene {index}: image/audio reference missing")
-            continue
-        image_path = (story_path.parent / image_ref).resolve()
-        audio_path = (story_path.parent / audio_ref).resolve()
-        seen_scene_images.add(image_path)
-        if not image_path.is_file():
+        for reference, label in ((image_ref, "image"), (audio_ref, "audio")):
+            if reference and (reference.startswith("/") or "\\" in reference or
+                              any(part == ".." for part in Path(reference).parts)):
+                error(f"scene {index}: {label} reference must be package-relative")
+        image_path = (story_path.parent / image_ref).resolve() if image_ref else None
+        audio_path = (story_path.parent / audio_ref).resolve() if audio_ref else None
+        if image_path:
+            seen_scene_images.add(image_path)
+        if image_path and not image_path.is_file():
             error(f"scene {index}: missing image {image_ref}")
-        else:
+        elif image_path:
             with Image.open(image_path) as image:
                 if image.size != (200, 200):
                     error(f"scene {index}: image size is {image.size}, expected (200, 200)")
@@ -91,12 +97,9 @@ def check_story(story_dir: Path) -> int:
                 if ratio > 0.45:
                     error(f"scene {index}: ink_ratio={ratio:.3f} exceeds hard limit 0.45")
                 print(f"{status} scene={index} image={image_path.name} size=200x200 ink_ratio={ratio:.3f}")
-        if not audio_path.is_file():
+        if not audio_path or not audio_path.is_file():
             message = f"scene {index}: missing audio {audio_ref}"
-            if audio_pending:
-                warning(f"{message}; audio_status=pending")
-            else:
-                error(message)
+            warning(f"{message}; visual playback remains available")
         else:
             try:
                 with wave.open(str(audio_path), "rb") as audio:
@@ -113,9 +116,15 @@ def check_story(story_dir: Path) -> int:
             except wave.Error as exc:
                 error(f"scene {index}: invalid WAV: {exc}")
 
-    if len(seen_scene_images) != len(scenes):
+    image_scene_count = sum(1 for scene in scenes if scene.get("image"))
+    if image_scene_count and len(seen_scene_images) != image_scene_count:
         error("scene image references are not unique")
-    fvid = story_dir / build_spec.get("output", f"{story.get('id', story_dir.name)}.fvid")
+    fvid_ref = story.get("fvid") or build_spec.get("output", f"{story.get('id', story_dir.name)}.fvid")
+    if not fvid_ref or fvid_ref.startswith("/") or "\\" in fvid_ref or any(part == ".." for part in Path(fvid_ref).parts):
+        error("story.json fvid must be a package-relative path")
+        fvid = story_dir / "__missing__.fvid"
+    else:
+        fvid = story_path.parent / fvid_ref
     if not fvid.is_file():
         warning(f"missing built FVID {fvid.name}; run tools/build_stories.py first")
     else:
@@ -127,7 +136,7 @@ def check_story(story_dir: Path) -> int:
             if (version, width, height) != (1, 200, 200):
                 error(f"FVID geometry/version is {version}/{width}x{height}, expected 1/200x200")
             expected = 16 + count * 5004
-            if len(raw) != expected or count != len(scenes):
+            if len(raw) != expected or (scenes and count != len(scenes)):
                 error(f"FVID contains {count} frames and {len(raw)} bytes; expected {len(scenes)} frames/{expected} bytes")
             for index in range(min(count, len(scenes))):
                 frame = raw[16 + index * 5004 + 4:16 + (index + 1) * 5004]

@@ -17,7 +17,11 @@ def main() -> int:
 
     root = args.story_root.resolve()
     checker = Path(__file__).with_name("check_story_assets.py")
-    packages = sorted(path for path in root.iterdir() if (path / "build.json").is_file())
+    packages = sorted(
+        path for path in root.iterdir()
+        if path.is_dir() and ((path / "story.json").is_file() or
+                              (path / path.name / "story.json").is_file())
+    )
     if not packages:
         print(f"FAIL no story packages found in {root}")
         return 1
@@ -33,10 +37,12 @@ def main() -> int:
         if result.returncode != 0:
             failures += 1
             continue
-        metadata_path = package / package.name / "story.json"
+        metadata_path = package / "story.json"
+        if not metadata_path.is_file():
+            metadata_path = package / package.name / "story.json"
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
         story_id = metadata.get("id", package.name)
-        if metadata.get("audio_status") == "pending":
+        if metadata.get("audio_status") in ("pending", "missing"):
             pending.append(story_id)
         else:
             ready.append(story_id)

@@ -8,7 +8,6 @@
 #include "../file_sync/file_sync_server.h"
 #include "story_audio.h"
 #include "story_catalog.h"
-#include "family_video_assets.h" /* refresh-hint constants and photo source ABI */
 #include "bsp.h"
 #include "bsp_pins.h"
 #include "../../shell/shell.h"
@@ -21,8 +20,7 @@ namespace {
 
 enum view_t { VIEW_LIBRARY, VIEW_PLAYER };
 constexpr int LIBRARY_VISIBLE = 6;
-constexpr int BUILTIN_STORY_COUNT = 2;
-constexpr int STORY_LIBRARY_MAX = SD_STORY_MAX + BUILTIN_STORY_COUNT;
+constexpr int STORY_LIBRARY_MAX = SD_STORY_MAX;
 constexpr int LIBRARY_ROW_Y = 34;
 constexpr int LIBRARY_ROW_H = 24;
 constexpr int LIBRARY_FOOTER_Y = 184;
@@ -72,6 +70,13 @@ void render_library()
     bsp_ui_fb_draw_text(5, 8, "PHOTOS", 1);
     bsp_ui_fb_draw_text(132, 8, "STORIES", 1);
 
+    if (s_story_count <= 0) {
+        bsp_ui_fb_draw_text(28, 94, "NO STORIES AVAILABLE", 1);
+        bsp_ui_fb_draw_text(34, 116, "INSERT TF CARD", 1);
+        bsp_ui_fb_draw_text(5, LIBRARY_FOOTER_Y, "BACK launcher  R rescan", 1);
+        return;
+    }
+
     const int page_start = (s_selected / LIBRARY_VISIBLE) * LIBRARY_VISIBLE;
     for (int row = 0; row < LIBRARY_VISIBLE; row++) {
         const int index = page_start + row;
@@ -97,10 +102,6 @@ void sync_scene_audio(bool display_ok)
     const fvid_entry_t& story = s_stories[s_selected];
     if (story.kind == FVID_ENTRY_SD && s_source == frame_source_sd()) {
         Serial.printf("[video] audio map id=%s scene=%d source=SD\n", story.id, s_frame);
-        story_audio_play_scene(story.path, s_frame);
-        return;
-    }
-    if (story.kind == FVID_ENTRY_ROM_STORY) {
         story_catalog_play_audio(story, s_frame);
         return;
     }
@@ -113,10 +114,6 @@ bool show_library(bool full_refresh)
     s_opening_active = false;
     s_opening_seen_playing = false;
     s_closing_shown = false;
-    if (s_story_count <= 0) {
-        Serial.println("[video] library empty: NO STORIES AVAILABLE");
-        return false;
-    }
     s_view = VIEW_LIBRARY;
     render_library();
     const bool ok = full_refresh ? shell_full_refresh_current() : bsp_ui_flush_partial();
@@ -128,9 +125,7 @@ void reload_story_library_if_changed()
 {
     const uint32_t generation = file_sync_server_commit_generation();
     if (generation == s_sync_generation_seen) return;
-    s_story_count = story_catalog_append_builtins(s_stories, STORY_LIBRARY_MAX);
-    s_story_count += frame_source_sd_scan(s_stories + s_story_count,
-                                          STORY_LIBRARY_MAX - s_story_count);
+    s_story_count = story_catalog_scan(s_stories, STORY_LIBRARY_MAX);
     s_selected = min(s_selected, max(0, s_story_count - 1));
     s_frame = 0;
     s_source = nullptr;
@@ -151,35 +146,16 @@ bool show_frame(int target, bool force_full)
     uint8_t* fb = bsp_ui_fb();
     if (!s_source->load(target, fb, bsp_ui_fb_len())) {
         Serial.printf("[video] %s load frame %d failed\n", s_source->name, target);
-        if (s_source == frame_source_sd()) {
-            /* Keep the failed SD entry selected, but use an explicit visual
-             * fallback. Its SD audio mapping remains disabled because the
-             * active source is no longer SD. */
-            story_audio_stop();
-            s_source = frame_source_story_rom();
-            Serial.printf("[video] SD playback fallback id=%s source=ROM:FOX_FOREST\n",
-                          s_stories[s_selected].id);
-            count = s_source->count();
-            if (target >= count) target = count - 1;
-            if (!s_source->load(target, fb, bsp_ui_fb_len())) {
-                Serial.println("[video] ROM fallback load failed");
-                if (s_from_library) show_library(true);
-                else shell_show_launcher();
-                return false;
-            }
-            Serial.println("[video] SD playback fell back to ROM");
-        } else {
-            if (s_from_library) show_library(true);
-            else shell_show_launcher();
-            return false;
-        }
+        if (s_from_library) show_library(true);
+        else shell_show_launcher();
+        return false;
     }
 
     const bool backwards = target < s_frame;
     const bool final_frame = target == count - 1;
     const int hint = s_source->hint(target);
     const bool needs_new_base = !force_full && (final_frame || backwards ||
-                          hint != APP_REFRESH_PARTIAL || s_streak >= APP_PARTIAL_MAX_STREAK ||
+                          hint != FVID_REFRESH_PARTIAL || s_streak >= APP_PARTIAL_MAX_STREAK ||
                           !bsp_ui_partial_active());
     s_frame = target;
 
@@ -204,14 +180,14 @@ bool show_frame(int target, bool force_full)
 
 bool is_odyssey_homecoming(const fvid_entry_t& story)
 {
-    return story.kind == FVID_ENTRY_SD && strcmp(story.id, "odyssey_homecoming") == 0;
+    return story.kind == FVID_ENTRY_SD && story.opening_audio[0] && story.closing_overlay;
 }
 
 void render_opening_card(const fvid_entry_t& story)
 {
     bsp_ui_fb_clear(0xFF);
-    const char* title = is_odyssey_homecoming(story) ? "THE ODYSSEY" : story.name;
-    const char* author = is_odyssey_homecoming(story) ? "HOMER" : "CLASSIC STORY";
+    const char* title = story.name[0] ? story.name : story.id;
+    const char* author = story.author[0] ? story.author : "UNKNOWN AUTHOR";
     const int title_x = max(4, (BSP_EPD_W - (int)strlen(title) * 12) / 2);
     const int author_x = max(4, (BSP_EPD_W - (int)strlen(author) * 6) / 2);
     bsp_ui_fb_fill_rect(24, 48, BSP_EPD_W - 48, 1, true);
@@ -247,7 +223,7 @@ bool start_opening_if_available()
     if (!shell_full_refresh_current()) {
         Serial.println("[video] opening card refresh FAIL");
     }
-    if (!story_audio_play_opening(story.path)) return false;
+    if (!story_audio_play_opening(story.path, story.opening_audio)) return false;
 
     s_opening_active = true;
     s_opening_seen_playing = false;
@@ -278,19 +254,8 @@ void select_story(int index)
     if (index >= s_story_count) index = s_story_count - 1;
     s_selected = index;
 
-    if (s_stories[index].kind == FVID_ENTRY_ROM_PHOTOS ||
-        s_stories[index].kind == FVID_ENTRY_ROM_STORY) {
-        s_source = story_catalog_frame_source(s_stories[index]);
-        s_frame = 0;
-        s_streak = 0;
-        s_from_library = true;
-        s_view = VIEW_PLAYER;
-        if (!show_frame(0, true)) Serial.println("[video] built-in story initial frame FAIL");
-        return;
-    }
-
-    if (!frame_source_sd_open(s_stories[index].path)) {
-        Serial.printf("[video] story open failed: %s\n", s_stories[index].path);
+    if (!frame_source_sd_open(s_stories[index].fvid_path)) {
+        Serial.printf("[video] story open failed: %s\n", s_stories[index].fvid_path);
         show_library(false);
         return;
     }
@@ -378,9 +343,7 @@ void handle_event(const shell_event_t& event)
 void app_family_video_on_enter(void)
 {
     s_story_count = 0;
-    s_story_count = story_catalog_append_builtins(s_stories, STORY_LIBRARY_MAX);
-    s_story_count += frame_source_sd_scan(s_stories + s_story_count,
-                                          STORY_LIBRARY_MAX - s_story_count);
+    s_story_count = story_catalog_scan(s_stories, STORY_LIBRARY_MAX);
     s_selected = 0;
     s_frame = 0;
     s_streak = 0;
@@ -388,25 +351,16 @@ void app_family_video_on_enter(void)
     s_opening_seen_playing = false;
     s_closing_shown = false;
     s_sync_generation_seen = file_sync_server_commit_generation();
-    if (s_story_count > 0) {
-        s_from_library = true;
-        s_source = nullptr;
-        show_library(true);
-        Serial.printf("[video] enter view=library stories=%d\n", s_story_count);
-        for (int i = 0; i < s_story_count; i++) {
-            Serial.printf("[video] library[%d] id=%s scenes=%u source=%s\n",
-                          i, s_stories[i].id, s_stories[i].frames,
-                          story_catalog_storage_name(s_stories[i]));
-        }
-        return;
+    s_from_library = true;
+    s_source = nullptr;
+    show_library(true);
+    Serial.printf("[video] enter view=library stories=%d\n", s_story_count);
+    for (int i = 0; i < s_story_count; i++) {
+        Serial.printf("[video] library[%d] id=%s scenes=%u source=%s%s\n",
+                      i, s_stories[i].id, s_stories[i].frames,
+                      story_catalog_storage_name(s_stories[i]),
+                      s_stories[i].audio_missing ? " audio-missing" : "");
     }
-
-    frame_source_use_rom();
-    s_source = frame_source_current();
-    s_from_library = false;
-    s_view = VIEW_PLAYER;
-    Serial.printf("[video] enter view=player source=%s frames=%d\n", s_source->name, s_source->count());
-    if (!show_frame(0, true)) Serial.println("[video] initial frame FAIL");
 }
 
 void app_family_video_on_exit(void)

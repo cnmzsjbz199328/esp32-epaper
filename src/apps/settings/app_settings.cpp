@@ -8,25 +8,18 @@
 #include "../../app_diagnostics.h"
 #include "bsp.h"
 #include "bsp_pins.h"
-#include "audio.h"
 #include "../../shell/shell.h"
 #include "../../../lib/nvs_settings/nvs_settings.h"
-#include "../usage/usage_model.h"
 #include "../file_sync/file_sync_server.h"
 #include "file_storage.h"
 
 namespace {
-enum settings_page_t { PAGE_LIST, PAGE_RESULTS, PAGE_DETAIL, PAGE_VOLUME };
+enum settings_page_t { PAGE_LIST, PAGE_RESULTS, PAGE_DETAIL };
 settings_page_t s_page = PAGE_LIST;
 int s_selected = 0;
 int s_result_scroll = 0;
-constexpr int ITEM_COUNT = 8;
-const char* const ITEMS[ITEM_COUNT] = {
-    "HARDWARE TEST", "M0 STATIC FRAME", "M1 PARTIAL WALK", "BOOT DIAGNOSTIC", "WIFI + SYNC", "ABOUT", "USAGE PUSH", "VOLUME"
-};
-uint32_t s_usage_seq_seen = 0;
-constexpr uint8_t VOLUME_STEP = 5;
-uint8_t s_volume = 80;
+constexpr int ITEM_COUNT = 2;
+const char* const ITEMS[ITEM_COUNT] = { "WIFI + SYNC", "TF DIAGNOSTIC" };
 
 void draw_line(int y, const char* text, bool selected)
 {
@@ -123,49 +116,9 @@ void render_wifi(void)
     bsp_ui_fb_draw_text(5, 184, "ENTER auto  D del  S scan", 1);
 }
 
-void render_usage(void)
-{
-    bsp_ui_fb_fill_rect(0, 26, BSP_EPD_W, BSP_EPD_H - 26, false);
-    bsp_ui_fb_draw_text(5, 30, "USAGE PUSH", 1);
-    if (usage_model_seq() == 0) {
-        bsp_ui_fb_draw_text(5, 52, "NO HOST", 1);
-    } else {
-        const int count = usage_model_count();
-        for (int i = 0; i < count && i < 3; i++) {
-            const usage_snapshot_t* snapshot = usage_model_at(i);
-            if (!snapshot) continue;
-            const uint32_t age = usage_model_age_ms(snapshot->provider);
-            char line[38];
-            char age_text[10];
-            if (age == UINT32_MAX) snprintf(age_text, sizeof(age_text), "never");
-            else if (age >= 3600000u) snprintf(age_text, sizeof(age_text), "%luh", (unsigned long)(age / 3600000u));
-            else snprintf(age_text, sizeof(age_text), "%lus", (unsigned long)(age / 1000u));
-            snprintf(line, sizeof(line), "%-7s %-5s %.15s %s", snapshot->provider, age_text,
-                     snapshot->limit_state, snapshot->ok ? "ok" : "bad");
-            bsp_ui_fb_draw_text(5, 52 + i * 20, line, 1);
-        }
-    }
-    bsp_ui_fb_draw_text(5, 184, "ESC back", 1);
-}
-
-void render_volume(void)
-{
-    bsp_ui_fb_fill_rect(0, 26, BSP_EPD_W, BSP_EPD_H - 26, false);
-    bsp_ui_fb_draw_text(5, 30, "VOLUME", 1);
-    char line[16];
-    snprintf(line, sizeof(line), "%3u %%", (unsigned)s_volume);
-    bsp_ui_fb_draw_text(5, 52, line, 1);
-    const int bar_w = BSP_EPD_W - 10;
-    bsp_ui_fb_fill_rect(5, 70, bar_w, 10, false);
-    const int fill_w = (int)((long)bar_w * s_volume / 100);
-    if (fill_w > 0) bsp_ui_fb_fill_rect(5, 70, fill_w, 10, true);
-    bsp_ui_fb_draw_text(5, 184, "UP/DN vol  ENTER test  ESC back", 1);
-}
-
 void refresh_page(void)
 {
     if (s_page == PAGE_RESULTS) render_results();
-    else if (s_page == PAGE_VOLUME) render_volume();
     else render_list();
     if (!bsp_ui_flush_partial()) Serial.println("[settings] partial refresh failed");
 }
@@ -173,41 +126,15 @@ void refresh_page(void)
 void run_selected(void)
 {
     if (s_selected == 0) {
-        s_page = PAGE_RESULTS;
-        s_result_scroll = 0;
-        render_results();
-        (void)bsp_ui_flush_partial();
-        shell_suspend_active();
-        diag_runner_run_full();
-        shell_resume_active();
-    } else if (s_selected == 1) {
-        shell_suspend_active();
-        app_run_m0_diagnostics();
-        shell_resume_active();
-    } else if (s_selected == 2) {
-        shell_suspend_active();
-        app_run_m1_diagnostics();
-        shell_resume_active();
-    } else if (s_selected == 3) {
-        shell_suspend_active();
-        app_run_boot_diagnostics();
-    } else if (s_selected == 4) {
         s_page = PAGE_DETAIL;
         render_wifi();
         (void)bsp_ui_flush_partial();
-    } else if (s_selected == 5) {
-        s_page = PAGE_DETAIL;
-        render_about();
-        (void)bsp_ui_flush_partial();
-    } else if (s_selected == 6) {
-        s_page = PAGE_DETAIL;
-        s_usage_seq_seen = usage_model_seq();
-        render_usage();
-        (void)bsp_ui_flush_partial();
-    } else if (s_selected == 7) {
-        s_page = PAGE_VOLUME;
-        s_volume = ecp::settings::get_volume(80);
-        render_volume();
+    } else if (s_selected == 1) {
+        shell_suspend_active();
+        diag_runner_run_full();
+        shell_resume_active();
+        s_page = PAGE_RESULTS;
+        render_results();
         (void)bsp_ui_flush_partial();
     }
 }
@@ -235,13 +162,8 @@ void handle_event(const shell_event_t& event)
 void app_settings_on_enter(void)
 {
     if (s_page == PAGE_RESULTS) render_results();
-    else if (s_page == PAGE_VOLUME) render_volume();
     else if (s_page == PAGE_DETAIL) {
-        if (s_selected == 4) render_wifi();
-        else if (s_selected == 6) {
-            s_usage_seq_seen = usage_model_seq();
-            render_usage();
-        } else render_about();
+        render_wifi();
     }
     else render_list();
     (void)bsp_ui_flush_partial();
@@ -253,11 +175,7 @@ void app_settings_tick(void)
 {
     const app_entry_t* active = shell_active_app();
     handle_event(shell_wait_event(30000));
-    if (shell_active_app() == active && s_page == PAGE_DETAIL && s_selected == 6 && usage_model_seq() != s_usage_seq_seen) {
-        s_usage_seq_seen = usage_model_seq();
-        render_usage();
-        (void)bsp_ui_flush_partial();
-    }
+    (void)active;
 }
 
 void app_settings_on_key(const char* key, const char* event)
@@ -270,36 +188,19 @@ void app_settings_on_key(const char* key, const char* event)
         return;
     }
     if (s_page == PAGE_DETAIL) {
-        if (s_selected == 4 && strcmp(key, "enter") == 0) {
+        if (s_selected == 0 && strcmp(key, "enter") == 0) {
             ecp::settings::set_auto_sync(!ecp::settings::get_auto_sync(false));
             render_wifi();
             (void)bsp_ui_flush_partial();
-        } else if (s_selected == 4 && strcmp(key, "d") == 0) {
+        } else if (s_selected == 0 && strcmp(key, "d") == 0) {
             ecp::settings::set_allow_delete(!ecp::settings::get_allow_delete(false));
             render_wifi();
             (void)bsp_ui_flush_partial();
-        } else if (s_selected == 4 && strcmp(key, "s") == 0) {
+        } else if (s_selected == 0 && strcmp(key, "s") == 0) {
             ecp::settings::set_auto_story_scan(!ecp::settings::get_auto_story_scan(true));
             render_wifi();
             (void)bsp_ui_flush_partial();
         } else if (strcmp(key, "back") == 0 || strcmp(key, "esc") == 0) { s_page = PAGE_LIST; refresh_page(); }
-        return;
-    }
-    if (s_page == PAGE_VOLUME) {
-        if (strcmp(key, "up") == 0 || strcmp(key, "down") == 0) {
-            int next = (int)s_volume + (strcmp(key, "up") == 0 ? VOLUME_STEP : -(int)VOLUME_STEP);
-            s_volume = (uint8_t)max(0, min(100, next));
-            ecp::settings::set_volume(s_volume);
-            if (bsp_audio_ready()) bsp_audio_set_volume(s_volume);
-            refresh_page();
-        } else if (strcmp(key, "enter") == 0) {
-            if (!bsp_audio_ready()) bsp_audio_init(16000, s_volume);
-            else bsp_audio_set_volume(s_volume);
-            bsp_audio_tone(880, 150, 60);
-        } else if (strcmp(key, "back") == 0 || strcmp(key, "esc") == 0) {
-            s_page = PAGE_LIST;
-            refresh_page();
-        }
         return;
     }
     if (strcmp(key, "up") == 0) { s_selected = (s_selected + ITEM_COUNT - 1) % ITEM_COUNT; refresh_page(); }
