@@ -15,6 +15,8 @@ namespace {
 constexpr uint32_t TOUCH_POLL_MS = 40;
 constexpr uint32_t TOUCH_STABLE_MS = 50;
 constexpr uint32_t TOUCH_RELEASE_MS = 150;
+constexpr uint32_t TOUCH_RELEASE_TIMEOUT_MS = 500;
+constexpr uint32_t TOUCH_HOLD_TIMEOUT_MS = 1000;
 constexpr uint32_t TOUCH_DEBOUNCE_MS = 180;
 constexpr uint32_t TOUCH_LONG_MS = 1500;
 constexpr uint32_t TOUCH_MOVE_TOLERANCE = 8;
@@ -43,6 +45,7 @@ bool pop_key(queued_key_t* out)
 bool wait_released(uint32_t stable_ms)
 {
     uint32_t clear_since = 0;
+    const uint32_t started = millis();
     while (true) {
         ecp_ble_loop();
         bsp_touch_point_t point;
@@ -50,6 +53,10 @@ bool wait_released(uint32_t stable_ms)
         else {
             if (clear_since == 0) clear_since = millis();
             if (millis() - clear_since >= stable_ms) return true;
+        }
+        if (millis() - started >= TOUCH_RELEASE_TIMEOUT_MS) {
+            Serial.println("[shell] touch release timeout; continuing event loop");
+            return true;
         }
         delay(TOUCH_POLL_MS);
     }
@@ -168,9 +175,14 @@ shell_event_t shell_wait_event(uint32_t timeout_ms)
             const uint32_t down_at = millis();
             const uint16_t x = point.x;
             const uint16_t y = point.y;
-            while (bsp_touch_read(&point) && point.down) {
+            const uint32_t hold_started = millis();
+            while (bsp_touch_read(&point) && point.down &&
+                   millis() - hold_started < TOUCH_HOLD_TIMEOUT_MS) {
                 handle_power_poll();
                 delay(TOUCH_POLL_MS);
+            }
+            if (millis() - hold_started >= TOUCH_HOLD_TIMEOUT_MS) {
+                Serial.println("[shell] touch hold timeout; continuing event loop");
             }
             wait_released(TOUCH_RELEASE_MS);
             event.kind = SHELL_EV_TAP;

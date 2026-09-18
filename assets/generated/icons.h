@@ -8,4 +8,5 @@
 
 extern const uint8_t SHELL_ICON_FRAMES[SHELL_ICON_LEN];
 extern const uint8_t SHELL_ICON_SETTINGS[SHELL_ICON_LEN];
+extern const uint8_t SHELL_ICON_FILE_SYNC[SHELL_ICON_LEN];
 extern const uint8_t SHELL_ICON_USAGE[SHELL_ICON_LEN];

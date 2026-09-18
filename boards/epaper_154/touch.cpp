@@ -1,9 +1,11 @@
 #include "touch.h"
 
 #include <Wire.h>
+#include <Arduino.h>
 #include "bsp_pins.h"
 
 static bool s_ready = false;
+static bool s_last_down = false;
 
 static void ft6336_reset(void)
 {
@@ -85,6 +87,11 @@ bool bsp_touch_read(bsp_touch_point_t* p)
         p->x = x;
         p->y = y;
         p->down = points > 0 && points <= 2 && x < BSP_EPD_W && y < BSP_EPD_H;
+        if (p->down != s_last_down) {
+            Serial.printf("[touch] %s n%u x%u y%u\n",
+                          p->down ? "down" : "up", points, x, y);
+            s_last_down = p->down;
+        }
     }
     return points > 0 && points <= 2 && x < BSP_EPD_W && y < BSP_EPD_H;
 }
@@ -101,4 +108,3 @@ void bsp_touch_monitor(void)
         last = millis();
     }
 }
-

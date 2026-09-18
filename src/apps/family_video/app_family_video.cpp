@@ -10,10 +10,23 @@
 #include "story_catalog.h"
 #include "bsp.h"
 #include "bsp_pins.h"
+#include "touch.h"
 #include "../../shell/shell.h"
 
 #ifndef APP_PARTIAL_MAX_STREAK
 #define APP_PARTIAL_MAX_STREAK 4
+#endif
+
+#ifndef APP_PHOTOS_FRAME_INTERVAL_MS
+#define APP_PHOTOS_FRAME_INTERVAL_MS 5000
+#endif
+
+#ifndef APP_PHOTOS_AUDIO_START_TIMEOUT_MS
+#define APP_PHOTOS_AUDIO_START_TIMEOUT_MS 1000
+#endif
+
+#ifndef APP_PHOTOS_AUDIO_GAP_MS
+#define APP_PHOTOS_AUDIO_GAP_MS 1500
 #endif
 
 namespace {
@@ -37,6 +50,11 @@ bool s_opening_active = false;
 bool s_opening_seen_playing = false;
 uint32_t s_opening_started_ms = 0;
 bool s_closing_shown = false;
+bool s_auto_play = false;
+uint32_t s_next_auto_frame_ms = 0;
+uint32_t s_frame_displayed_ms = 0;
+bool s_scene_audio_requested = false;
+bool s_scene_audio_started = false;
 uint32_t s_sync_generation_seen = 0;
 
 int library_page_count()
@@ -95,6 +113,9 @@ void render_library()
 
 void sync_scene_audio(bool display_ok)
 {
+    s_scene_audio_requested = false;
+    s_scene_audio_started = false;
+    s_frame_displayed_ms = millis();
     if (!display_ok) {
         story_audio_stop();
         return;
@@ -102,7 +123,7 @@ void sync_scene_audio(bool display_ok)
     const fvid_entry_t& story = s_stories[s_selected];
     if (story.kind == FVID_ENTRY_SD && s_source == frame_source_sd()) {
         Serial.printf("[video] audio map id=%s scene=%d source=SD\n", story.id, s_frame);
-        story_catalog_play_audio(story, s_frame);
+        s_scene_audio_requested = story_catalog_play_audio(story, s_frame);
         return;
     }
     story_audio_stop();
@@ -212,6 +233,7 @@ void finish_opening()
     s_opening_seen_playing = false;
     Serial.println("[video] opening complete; starting scene 0");
     if (!show_frame(0, true)) Serial.println("[video] first scene after opening FAIL");
+    s_next_auto_frame_ms = millis() + APP_PHOTOS_FRAME_INTERVAL_MS;
 }
 
 bool start_opening_if_available()
@@ -265,6 +287,8 @@ void select_story(int index)
     s_opening_active = false;
     s_opening_seen_playing = false;
     s_closing_shown = false;
+    s_auto_play = true;
+    s_next_auto_frame_ms = millis() + APP_PHOTOS_FRAME_INTERVAL_MS;
     s_from_library = true;
     s_view = VIEW_PLAYER;
     if (start_opening_if_available()) return;
@@ -290,6 +314,11 @@ void page_selection(int delta)
 
 void handle_event(const shell_event_t& event)
 {
+    if (event.kind == SHELL_EV_TAP && s_view == VIEW_PLAYER) {
+        s_auto_play = false;
+        s_next_auto_frame_ms = 0;
+        Serial.println("[video] touch -> manual playback");
+    }
     if (event.kind == SHELL_EV_HOME) {
         shell_show_launcher();
         return;
@@ -303,6 +332,13 @@ void handle_event(const shell_event_t& event)
         return;
     }
     if (s_opening_active) {
+        if (event.kind == SHELL_EV_TAP) {
+            s_auto_play = false;
+            story_audio_stop();
+            s_opening_active = false;
+            if (!show_frame(0, true)) Serial.println("[video] first scene after opening FAIL");
+            return;
+        }
         if (event.kind == SHELL_EV_KEY &&
             (strcmp(event.key, "space") == 0 || strcmp(event.key, "play") == 0 ||
              strcmp(event.key, "pause") == 0)) {
@@ -368,6 +404,8 @@ void app_family_video_on_exit(void)
     s_opening_active = false;
     s_opening_seen_playing = false;
     s_closing_shown = false;
+    s_auto_play = false;
+    s_next_auto_frame_ms = 0;
     story_audio_stop();
     file_storage::playback_end();
 }
@@ -382,7 +420,36 @@ void app_family_video_tick(void)
         s_view == VIEW_PLAYER && s_source && s_selected >= 0 &&
         s_selected < s_story_count && is_odyssey_homecoming(s_stories[s_selected]) &&
         s_frame == s_source->count() - 1;
-    const uint32_t poll_ms = s_opening_active || final_odyssey_scene ? 100 : 60000;
+    if (s_auto_play && s_view == VIEW_PLAYER) {
+        bsp_touch_point_t point;
+        if (bsp_touch_read(&point) && point.down) {
+            s_auto_play = false;
+            s_next_auto_frame_ms = 0;
+            story_audio_stop();
+            Serial.println("[video] direct touch poll -> manual playback");
+        }
+    }
+    if (!s_opening_active && !s_closing_shown && s_view == VIEW_PLAYER && s_source &&
+        s_auto_play) {
+        const uint32_t now = millis();
+        if (s_scene_audio_requested) {
+            if (story_audio_is_playing()) {
+                s_scene_audio_started = true;
+            } else if (s_scene_audio_started) {
+                s_scene_audio_requested = false;
+                s_next_auto_frame_ms = now + APP_PHOTOS_AUDIO_GAP_MS;
+            } else if (now - s_frame_displayed_ms >= APP_PHOTOS_AUDIO_START_TIMEOUT_MS) {
+                s_scene_audio_requested = false;
+                s_next_auto_frame_ms = s_frame_displayed_ms + APP_PHOTOS_FRAME_INTERVAL_MS;
+            }
+        }
+        if (!s_scene_audio_requested && now >= s_next_auto_frame_ms) {
+        const int next = (s_frame + 1 >= s_source->count()) ? 0 : s_frame + 1;
+        show_frame(next, false);
+        }
+    }
+
+    const uint32_t poll_ms = s_opening_active || final_odyssey_scene || s_auto_play ? 100 : 60000;
     const shell_event_t event = shell_wait_event(poll_ms);
     handle_event(event);
 
@@ -416,8 +483,8 @@ void app_family_video_on_key(const char* key, const char* event)
     }
 
     if (!s_source) s_source = frame_source_init();
-    if (strcmp(key, "right") == 0) show_frame(s_frame + 1, false);
-    else if (strcmp(key, "left") == 0) show_frame(s_frame - 1, false);
+    if (strcmp(key, "right") == 0) { s_auto_play = false; show_frame(s_frame + 1, false); }
+    else if (strcmp(key, "left") == 0) { s_auto_play = false; show_frame(s_frame - 1, false); }
     else if (strcmp(key, "home") == 0) shell_show_launcher();
     else if (strcmp(key, "space") == 0 || strcmp(key, "play") == 0 ||
              strcmp(key, "pause") == 0) story_audio_toggle_pause();
