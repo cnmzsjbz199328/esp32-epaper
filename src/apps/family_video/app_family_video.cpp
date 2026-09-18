@@ -314,6 +314,11 @@ void page_selection(int delta)
 
 void handle_event(const shell_event_t& event)
 {
+    if (event.kind != SHELL_EV_NONE && event.kind != SHELL_EV_TIMEOUT) {
+        Serial.printf("[video] handle_event kind=%d x=%u y=%u long=%d key=%s auto=%d view=%d\n",
+                      event.kind, event.x, event.y, event.long_press, event.key,
+                      s_auto_play, s_view);
+    }
     if (event.kind == SHELL_EV_TAP && s_view == VIEW_PLAYER) {
         s_auto_play = false;
         s_next_auto_frame_ms = 0;

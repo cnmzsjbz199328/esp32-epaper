@@ -111,6 +111,7 @@ bool rebase_base(void)
 extern "C" void bsp_remote_key_event(const char* key, const char* event, const char* char_val)
 {
     (void)char_val;
+    Serial.printf("[shell] remote key rx key=%s event=%s\n", key ? key : "(null)", event ? event : "(null)");
     if (!key || !event || (strcmp(event, "press") != 0 && strcmp(event, "down") != 0 && strcmp(event, "repeat") != 0)) return;
     const size_t next = (s_key_tail + 1) % KEY_QUEUE_SIZE;
     if (next == s_key_head) {
@@ -140,8 +141,17 @@ shell_event_t shell_wait_event(uint32_t timeout_ms)
 {
     shell_event_t event = {};
     event.kind = SHELL_EV_NONE;
-    const uint32_t start = millis();
+    /* wait_released() alone costs >= TOUCH_RELEASE_MS (150ms) even with zero
+     * touch activity -- it needs that much continuous "not down" time before
+     * it considers the screen released. `start` must be sampled AFTER it
+     * returns: during PHOTOS auto-play/opening playback timeout_ms is only
+     * 100ms, and capturing `start` before this call meant the poll deadline
+     * was already blown by the time the loop below ever ran, so pop_key()
+     * and read_stable_touch() -- the only places that turn a queued BLE key
+     * or a touch into an event -- were never reached. Every remote esc/back
+     * press and every tap was silently swallowed as SHELL_EV_TIMEOUT. */
     wait_released(TOUCH_RELEASE_MS);
+    const uint32_t start = millis();
 
     while (millis() - start < timeout_ms) {
         handle_power_poll();

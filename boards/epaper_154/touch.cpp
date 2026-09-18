@@ -6,6 +6,9 @@
 
 static bool s_ready = false;
 static bool s_last_down = false;
+static uint32_t s_i2c_fail_streak = 0;
+static uint32_t s_i2c_fail_total = 0;
+static uint32_t s_i2c_fail_logged_at = 0;
 
 static void ft6336_reset(void)
 {
@@ -23,10 +26,36 @@ static bool reg_read(uint8_t reg, uint8_t* buf, size_t len)
 {
     Wire.beginTransmission(BSP_TOUCH_I2C_ADDR);
     Wire.write(reg);
-    if (Wire.endTransmission(false) != 0) return false;
-    if (Wire.requestFrom((int)BSP_TOUCH_I2C_ADDR, (int)len) != (int)len) return false;
-    for (size_t i = 0; i < len; i++) buf[i] = Wire.read();
-    return true;
+    const uint8_t end_err = Wire.endTransmission(false);
+    bool ok = end_err == 0;
+    int got = 0;
+    if (ok) {
+        got = Wire.requestFrom((int)BSP_TOUCH_I2C_ADDR, (int)len);
+        ok = got == (int)len;
+    }
+    if (ok) {
+        for (size_t i = 0; i < len; i++) buf[i] = Wire.read();
+        if (s_i2c_fail_streak > 0) {
+            /* Diagnostic added while chasing the PHOTOS touch-unresponsive bug:
+             * the FT6336 shares the I2C bus (SDA47/SCL48) with the ES8311 codec,
+             * which is muted/unmuted on every scene's audio start/stop. This
+             * confirms whether that contention is corrupting/failing touch reads. */
+            Serial.printf("[touch] i2c recovered after %lu consecutive failures\n",
+                          (unsigned long)s_i2c_fail_streak);
+        }
+        s_i2c_fail_streak = 0;
+        return true;
+    }
+    s_i2c_fail_streak++;
+    s_i2c_fail_total++;
+    const uint32_t now = millis();
+    if (now - s_i2c_fail_logged_at >= 300) {
+        s_i2c_fail_logged_at = now;
+        Serial.printf("[touch] i2c read FAIL streak=%lu total=%lu end_err=%u got=%d\n",
+                      (unsigned long)s_i2c_fail_streak, (unsigned long)s_i2c_fail_total,
+                      end_err, got);
+    }
+    return false;
 }
 
 bool bsp_touch_init(void)
